@@ -59,6 +59,8 @@ controls.screenSpacePanning = false;
 console.log("Set up texture loader");
 const cubeTextureLoader = new THREE.CubeTextureLoader();
 const loadTexture = new THREE.TextureLoader();
+const orbits = []; // Mảng lưu trữ các quỹ đạo
+
 
 // ******  POSTPROCESSING setup ******
 const composer = new EffectComposer(renderer);
@@ -103,7 +105,8 @@ customContainer.appendChild(gui.domElement);
 const settings = {
   accelerationOrbit: 1,
   acceleration: 1,
-  sunIntensity: 1.9
+  sunIntensity: 1.9,
+  showOrbits: true
 };
 
 gui.add(settings, 'accelerationOrbit', 0, 10).onChange(value => {
@@ -112,6 +115,11 @@ gui.add(settings, 'acceleration', 0, 10).onChange(value => {
 });
 gui.add(settings, 'sunIntensity', 1, 10).onChange(value => {
   sunMat.emissiveIntensity = value;
+});
+gui.add(settings, 'showOrbits').name('Show Orbits').onChange(value => {
+  orbits.forEach(orbit => {
+    orbit.visible = value; // Bật/tắt hiển thị quỹ đạo
+  });
 });
 
 // mouse movement
@@ -238,7 +246,6 @@ scene.add(sun);
 const pointLight = new THREE.PointLight(0xFDFFD3 , 1200, 400, 1.4);
 scene.add(pointLight);
 
-
 // ******  PLANET CREATION FUNCTION  ******
 function createPlanet(planetName, size, position, tilt, texture, bump, ring, atmosphere, moons){
 
@@ -285,7 +292,7 @@ function createPlanet(planetName, size, position, tilt, texture, bump, ring, atm
   const orbit = new THREE.LineLoop(orbitGeometry, orbitMaterial);
   orbit.rotation.x = Math.PI / 2;
   planetSystem.add(orbit);
-
+  orbits.push(orbit); // Thêm quỹ đạo vào mảng
   //add ring
   if(ring)
   {
