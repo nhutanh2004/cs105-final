@@ -790,3 +790,38 @@ window.addEventListener('resize', function(){
   renderer.setSize(window.innerWidth,window.innerHeight);
   composer.setSize(window.innerWidth,window.innerHeight);
 });
+
+// Tốc độ di chuyển camera
+// Tốc độ di chuyển camera
+// Tốc độ di chuyển camera
+const moveSpeed = 5;
+
+// Thêm sự kiện bàn phím cho W, S, A, D
+window.addEventListener('keydown', (event) => {
+  // Chỉ cho phép di chuyển khi không zoom vào hành tinh hoặc zoom ra
+  if (!isMovingTowardsPlanet && !isZoomingOut) {
+    const direction = camera.getWorldDirection(new THREE.Vector3());
+    const right = direction.clone().cross(camera.up).normalize(); // Hướng sang phải
+    let newPosition = camera.position.clone();
+
+    switch (event.key.toLowerCase()) {
+      case 'w': // Tiến lên
+        newPosition.add(direction.multiplyScalar(moveSpeed));
+        break;
+      case 's': // Lùi lại
+        newPosition.add(direction.multiplyScalar(-moveSpeed));
+        break;
+      case 'a': // Sang trái
+        newPosition.add(right.multiplyScalar(-moveSpeed));
+        break;
+      case 'd': // Sang phải
+        newPosition.add(right.multiplyScalar(moveSpeed));
+        break;
+    }
+
+    // Cập nhật vị trí camera
+    camera.position.copy(newPosition);
+    // Không thay đổi controls.target để tránh xoay quanh Mặt Trời
+    controls.update(); // Cập nhật OrbitControls để đồng bộ
+  }
+});
