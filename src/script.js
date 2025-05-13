@@ -792,36 +792,42 @@ window.addEventListener('resize', function(){
 });
 
 // Tốc độ di chuyển camera
-// Tốc độ di chuyển camera
-// Tốc độ di chuyển camera
-const moveSpeed = 5;
+
+// Tốc độ xoay camera (radian mỗi lần nhấn)
+const rotateSpeed = 0.05;
+
+// Biến để theo dõi tọa độ cầu của camera
+let radius = camera.position.length(); // Khoảng cách ban đầu từ camera đến Mặt Trời
+let theta = Math.atan2(camera.position.x, camera.position.z); // Góc ngang
+let phi = Math.acos(camera.position.y / radius); // Góc dọc
 
 // Thêm sự kiện bàn phím cho W, S, A, D
 window.addEventListener('keydown', (event) => {
-  // Chỉ cho phép di chuyển khi không zoom vào hành tinh hoặc zoom ra
+  // Chỉ cho phép xoay khi không zoom vào hành tinh hoặc zoom ra
   if (!isMovingTowardsPlanet && !isZoomingOut) {
-    const direction = camera.getWorldDirection(new THREE.Vector3());
-    const right = direction.clone().cross(camera.up).normalize(); // Hướng sang phải
-    let newPosition = camera.position.clone();
-
     switch (event.key.toLowerCase()) {
-      case 'w': // Tiến lên
-        newPosition.add(direction.multiplyScalar(moveSpeed));
+      case 'w': // Xoay lên trên
+        phi = Math.max(0.1, phi - rotateSpeed); // Giới hạn để không lật qua đỉnh
         break;
-      case 's': // Lùi lại
-        newPosition.add(direction.multiplyScalar(-moveSpeed));
+      case 's': // Xoay xuống dưới
+        phi = Math.min(Math.PI - 0.1, phi + rotateSpeed); // Giới hạn để không lật qua đáy
         break;
-      case 'a': // Sang trái
-        newPosition.add(right.multiplyScalar(-moveSpeed));
+      case 'a': // Xoay sang trái
+        theta += rotateSpeed;
         break;
-      case 'd': // Sang phải
-        newPosition.add(right.multiplyScalar(moveSpeed));
+      case 'd': // Xoay sang phải
+        theta -= rotateSpeed;
         break;
     }
 
-    // Cập nhật vị trí camera
-    camera.position.copy(newPosition);
-    // Không thay đổi controls.target để tránh xoay quanh Mặt Trời
-    controls.update(); // Cập nhật OrbitControls để đồng bộ
+    // Cập nhật vị trí camera theo tọa độ cầu
+    camera.position.x = radius * Math.sin(phi) * Math.sin(theta);
+    camera.position.y = radius * Math.cos(phi);
+    camera.position.z = radius * Math.sin(phi) * Math.cos(theta);
+
+    // Đảm bảo camera hướng về Mặt Trời
+    camera.lookAt(0, 0, 0);
+    controls.target.set(0, 0, 0); // Đặt target tại Mặt Trời
+    controls.update(); // Cập nhật OrbitControls
   }
 });
