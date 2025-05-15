@@ -6,7 +6,9 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OutlinePass } from 'three/addons/postprocessing/OutlinePass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 
+// 1 tới 4 là hình background
 import bgTexture1 from '/images/1.jpg';
 import bgTexture2 from '/images/2.jpg';
 import bgTexture3 from '/images/3.jpg';
@@ -36,58 +38,107 @@ import uraRingTexture from '/images/uranus_ring.png';
 import neptuneTexture from '/images/neptune.jpg';
 import plutoTexture from '/images/plutomap.jpg';
 
-// ******  SETUP  ******
+// ****** SETUP ******
 console.log("Create the scene");
 const scene = new THREE.Scene();
 
 console.log("Create a perspective projection camera");
-var camera = new THREE.PerspectiveCamera( 45, window.innerWidth/window.innerHeight, 0.1, 1000 );
+// 0.1 là near clipping plane
+// 1000 là far clipping plane
+var camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 3000);
 camera.position.set(-175, 115, 5);
 
 console.log("Create the renderer");
 const renderer = new THREE.WebGL1Renderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
+//adds the Three.js renderer's canvas element to the HTML document
+// <canvas> element accessible via renderer.domElement
+// document.body refers to the <body> element of the HTML document.
 document.body.appendChild(renderer.domElement);
+
+// sets the tone mapping algorithm used by the renderer to handle high dynamic range (HDR) lighting and color values, improving the visual quality of the scene
+// Tone mapping is a technique to map HDR colors (which can have very high or low intensity) to the limited range of a standard display (e.g., 0 to 1 for RGB).
+// THREE.ACESFilmicToneMapping is a specific tone mapping algorithm inspired by the ACES (Academy Color Encoding System) used in film production. 
+// It produces a cinematic look by preserving details in bright and dark areas, avoiding harsh clipping of highlights, and providing natural color transitions.
+// enhances the realism of the sun's glow, planet lighting, and post-processing effects like the bloom pass, making bright areas (e.g., the sun's corona) look vibrant yet natural.
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 
+//sets the exposure level for the tone mapping, controlling the overall brightness of the rendered scene.
+// The toneMappingExposure property adjusts how bright or dark the scene appears after tone mapping. 
+// A value of 1.0 is the default, meaning no additional brightening or darkening is applied
+// Higher values (e.g., 2.0) make the scene brighter, emphasizing highlights.
+// Lower values (e.g., 0.5) make it darker, reducing the intensity of bright areas.
+renderer.toneMappingExposure = 1.0;
+
 console.log("Create an orbit control");
+// OrbitControls, a Three.js utility that allows users to interactively rotate, zoom, and pan the camera using mouse or touch input
 const controls = new OrbitControls(camera, renderer.domElement);
+// Enables inertia or "damping" for camera movements, making them smoother and more natural.
 controls.enableDamping = true;
+// Sets the strength of the damping effect, controlling how quickly the camera's motion slows down after user input stops.
 controls.dampingFactor = 0.75;
+// Disables screen-space panning, ensuring panning moves the camera in a way that maintains the orbit target.
 controls.screenSpacePanning = false;
 
 console.log("Set up texture loader");
+// Creates a loader for cube textures, which are used to apply a 360-degree background (e.g., a skybox or environment map) to the scene.
 const cubeTextureLoader = new THREE.CubeTextureLoader();
+// Creates a loader for 2D textures, used to apply images to the surfaces of objects (e.g., planets, rings, or moons).
 const loadTexture = new THREE.TextureLoader();
-const orbits = []; // Mảng lưu trữ các quỹ đạo
+// Initializes an empty array to store the visual representations of planetary orbits.
+const orbits = [];
 
-
-// ******  POSTPROCESSING setup ******
+// ****** POSTPROCESSING setup ******
+// Initializes an EffectComposer for post-processing effects, allowing you to apply visual enhancements to the rendered scene.
+// THREE.EffectComposer is a tool for chaining post-processing effects, such as bloom, outlines, or color corrections, after the scene is rendered.
 const composer = new EffectComposer(renderer);
+// Adds a RenderPass to the composer, which renders the scene and camera to a buffer as the first step in the post-processing pipeline.
 composer.addPass(new RenderPass(scene, camera));
 
-// ******  OUTLINE PASS  ******
+// ****** OUTLINE PASS ******
+// Initializes an OutlinePass object to create outlines around objects in the scene.
+// THREE.OutlinePass is a post-processing pass that renders a glowing outline around specified objects by detecting edges.
+// OutlinePass works by rendering a depth and normal map of the scene, detecting edges of selected objects, and drawing outlines around them.
 const outlinePass = new OutlinePass(new THREE.Vector2(window.innerWidth, window.innerHeight), scene, camera);
-outlinePass.edgeStrength = 3;
-outlinePass.edgeGlow = 1;
+// Sets the intensity or thickness of the outline effect.
+outlinePass.edgeStrength = 1.5;
+// edgeGlow determines how much the outline “glows” or blurs outward, creating a soft, radiant effect. 
+// A value of 0 produces a sharp, hard edge, while higher values (e.g., 1 or more) add a glowing, diffused look.
+outlinePass.edgeGlow = 0.5;
+// Sets the color of the outline for edges that are visible (not occluded by other objects).
+// visibleEdgeColor is a THREE.Color object that defines the color of the outline for parts of the object that are directly visible to the camera.
+// this makes the outline of a hovered or selected planet (e.g., Mars) white, providing high contrast against the planet’s texture and the dark space background, ensuring clear visibility.
 outlinePass.visibleEdgeColor.set(0xffffff);
+// Sets the color of the outline for edges that are hidden (occluded by other objects).
+// 0x190a05 is a dark brownish color (rgb(25, 10, 5)), which is subtle and less prominent than the visible edge color.
+// This allows the outline to still be visible for occluded parts but with reduced intensity, avoiding visual clutter.
 outlinePass.hiddenEdgeColor.set(0x190a05);
+// Adds the OutlinePass to the EffectComposer pipeline, enabling the outline effect in the rendering process.
 composer.addPass(outlinePass);
 
-// ******  BLOOM PASS  ******
+// ****** BLOOM PASS ******
+// configure an UnrealBloomPass, a post-processing effect that adds a glowing or blooming effect to bright areas of the scene
+// enhancing the visual appeal of objects like the sun, corona, or bright planet surfaces.
 const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1, 0.4, 0.85);
-bloomPass.threshold = 1;
-bloomPass.radius = 0.9;
+// Sets the brightness threshold for the bloom effect, determining which pixels are considered bright enough to glow.
+bloomPass.threshold = 3.1; 
+// Sets the intensity of the bloom effect, controlling how strong the glow appears.
+bloomPass.strength = 1.0; 
+// Sets the spread or blur radius of the bloom effect, controlling how far the glow extends.
+bloomPass.radius = 0.0; 
+// Adds the UnrealBloomPass to the EffectComposer pipeline, enabling the bloom effect in the rendering process.
 composer.addPass(bloomPass);
 
 // ****** AMBIENT LIGHT ******
 console.log("Add the ambient light");
+// Creates an ambient light that illuminates all objects in the scene uniformly, regardless of their position or orientation.
 var lightAmbient = new THREE.AmbientLight(0x222222, 6); 
+// Adds the ambient light to the scene, making it active.
 scene.add(lightAmbient);
 
-// ******  Star background  ******
+// ****** Star background ******
+// Sets the background of the scene to a cube map (skybox) using six texture images, creating a starry space environment.
 scene.background = cubeTextureLoader.load([
-
   bgTexture3,
   bgTexture1,
   bgTexture2,
@@ -96,12 +147,22 @@ scene.background = cubeTextureLoader.load([
   bgTexture2
 ]);
 
-// ******  CONTROLS  ******
+// ****** CONTROLS ******
+// Initializes a dat.GUI interface for creating an interactive control panel, with automatic placement disabled.
+// dat.GUI is a lightweight JavaScript library used to create a user interface for tweaking variables in real-time.
+// autoPlace: false option prevents dat.GUI from automatically adding the panel to the DOM (e.g., as a floating window in the top-right corner).
+// By disabling auto-placement, you can manually control where the GUI is placed in the HTML document, offering more flexibility for layout integration.
+// GUI used to control settings like accelerationOrbit, acceleration, sunIntensity, and showOrbits, allowing users to interactively adjust the solar system’s behavior.
 const gui = new dat.GUI({ autoPlace: false });
+// Retrieves a specific HTML element (with the ID gui-container) to serve as the container for the dat.GUI panel.
+// HTML includes a <div id="gui-container"> where the GUI controls (sliders, checkboxes, etc.) will appear, integrating the interface seamlessly into your webpage design.
 const customContainer = document.getElementById('gui-container');
+// Adds the dat.GUI panel’s DOM element to the gui-container element, making the GUI visible on the webpage.
+// this ensures the GUI appears in the designated gui-container area, allowing users to interact with controls like adjusting the sun’s intensity or toggling orbit visibility.
 customContainer.appendChild(gui.domElement);
 
-// ****** SETTINGS FOR INTERACTIVE CONTROLS  ******
+// ****** SETTINGS FOR INTERACTIVE CONTROLS ******
+// setting default values in the dat.GUI
 const settings = {
   accelerationOrbit: 1,
   acceleration: 1,
@@ -109,233 +170,734 @@ const settings = {
   showOrbits: true
 };
 
-gui.add(settings, 'accelerationOrbit', 0, 10).onChange(value => {
+// add default values from settings to dat.GUI, alongside with minimum and maximum value
+// The empty .onChange(value => {}) callback means no additional logic is triggered, but settings.acceleration is updated and used in the animate function to scale rotation speeds
+gui.add(settings, 'accelerationOrbit', 0, 10).onChange(value => {});
+gui.add(settings, 'acceleration', 0, 10).onChange(value => {});
+// scale the value of sunIntensity appropriately
+gui.add(settings, 'sunIntensity', 1, 10, 0.1).onChange(value => {
+  sunMaterial.uniforms.emissiveIntensity.value = value * (5.0/1.9);
+  coronaMaterial.uniforms.glowIntensity.value = value * 0.9;
 });
-gui.add(settings, 'acceleration', 0, 10).onChange(value => {
-});
-gui.add(settings, 'sunIntensity', 1, 10).onChange(value => {
-  sunMat.emissiveIntensity = value;
-});
+
+// Adds a GUI checkbox to toggle the visibility of planetary orbits, with a callback to update the visibility of orbit lines.
 gui.add(settings, 'showOrbits').name('Show Orbits').onChange(value => {
   orbits.forEach(orbit => {
-    orbit.visible = value; // Bật/tắt hiển thị quỹ đạo
+    orbit.visible = value;
   });
 });
 
 // mouse movement
+// Creates a Raycaster object to perform raycasting, which detects intersections between a ray (from the camera through the mouse position) and 3D objects in the scene.
+// THREE.Raycaster is a Three.js utility that casts a virtual "ray" from a starting point (typically the camera) in a specified direction to check for intersections with objects.
+// raycaster is configured later in the code (e.g., in the animate function or onDocumentMouseDown) to cast rays based on the mouse position and camera perspective.
+// used to Detect which planet is under the mouse cursor for highlighting
+// used to Identify which planet is clicked to zoom in and display its information (in
 const raycaster = new THREE.Raycaster();
+// Creates a Vector2 object to store the normalized mouse coordinates in the range [-1, 1], used for raycasting.
 const mouse = new THREE.Vector2();
 
+// Defines a function to handle mouse movement events, updating the mouse vector with normalized coordinates.
 function onMouseMove(event) {
     event.preventDefault();
+    // event.clientX is the mouse’s horizontal position in pixels relative to the window (e.g., 0 at the left edge, 1920 at the right edge for a 1920px-wide window).
+    // event.clientX / window.innerWidth normalizes this to [0, 1] (e.g., 0 at the left, 1 at the right).
+    // Multiplying by 2 and subtracting 1 maps it to [-1, 1] (e.g., -1 at the left, +1 at the right).
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
 }
 
-// ******  SELECT PLANET  ******
+// ****** SELECT PLANET ******
+// selectedPlanet is a variable that holds a reference to the planet object (e.g., mercury, earth, jupiter) when a user clicks on it.
+// It is initialized to null, indicating that no planet is selected when the simulation starts.
+// When a planet is clicked, selectedPlanet is updated in the onDocumentMouseDown function by calling identifyPlanet
 let selectedPlanet = null;
+// Declares a boolean flag to indicate whether the camera is currently moving toward a selected planet.
+// isMovingTowardsPlanet is a state variable that tracks whether the camera is in the process of animating (lerping) toward a planet after a click.
+// It is initialized to false, meaning the camera is not moving toward a planet when the simulation starts.
+// When a planet is clicked in onDocumentMouseDown, isMovingTowardsPlanet is set to true to start the camera movement
 let isMovingTowardsPlanet = false;
+// Declares a Vector3 object to store the destination position for the camera when moving toward a selected planet.
+// targetCameraPosition defines where the camera should end up when zooming in on a planet, ensuring a smooth and visually appropriate view
+// (e.g., close to Mercury, farther from Jupiter due to its larger size).
 let targetCameraPosition = new THREE.Vector3();
+// Declares a variable to store the distance between the camera and the selected planet when zooming in.
+// offset is a number that specifies how far the camera should be from the planet’s center when it completes its movement.
+// It is not initialized here (its value is undefined initially) but is set in the identifyPlanet function based on the clicked planet
 let offset;
 
+// function to defines an event handler for mouse click events
+// this function enables users to click on a planet (e.g., Earth, Jupiter) to select it, zoom the camera toward it, and display its information.
 function onDocumentMouseDown(event) {
+  // Prevents default browser behaviors that might interfere with the click interaction.
   event.preventDefault();
-
+  // Updates the mouse.x and mouse.y coordinate to the normalized device coordinate (NDC) for raycasting.
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
 
+  // Configures the raycaster to cast a ray from the camera through the mouse’s normalized position.
   raycaster.setFromCamera(mouse, camera);
+  // Checks for intersections between the ray and a list of target objects, returning any hits.
+  // raycastTargets is an array of objects (likely planet meshes and atmospheres, e.g., mercury.planet, earth.Atmosphere) that the raycaster should test for intersections.
+  // intersectObjects returns an array of intersection objects, sorted by distance from the camera. Each intersection includes:
+  //    The intersected object (e.g., a planet’s mesh).
+  //    The point of intersection in 3D space.
+  //    The distance from the camera to the intersection.
+  // This determines if the user clicked on a planet or its atmosphere (e.g., Venus’ atmosphere), identifying the closest intersected object.
   var intersects = raycaster.intersectObjects(raycastTargets);
 
+  // If a click hit a valid target.
   if (intersects.length > 0) {
+    // Retrieves the closest intersected object (the one the user clicked)
     const clickedObject = intersects[0].object;
+    // Maps the clicked object to its corresponding planet object using the identifyPlanet function.
     selectedPlanet = identifyPlanet(clickedObject);
+    // Ensures a valid planet was identified before proceeding with camera movement and other actions.
     if (selectedPlanet) {
+      // Closes any currently displayed planet information without zooming out the camera.
       closeInfoNoZoomOut();
-      
-      settings.accelerationOrbit = 0; // Stop orbital movement
-
-      // Update camera to look at the selected planet
+      // Pauses the orbital movement of all planets.
+      settings.accelerationOrbit = 0;
+      // Creates a Vector3 object to store the selected planet’s position in world coordinates later.
       const planetPosition = new THREE.Vector3();
+      // Retrieves the world position of the selected planet’s mesh and stores it in planetPosition.
       selectedPlanet.planet.getWorldPosition(planetPosition);
+      // Sets the target point for OrbitControls to the planet’s position, making the camera orbit around the planet.
       controls.target.copy(planetPosition);
-      camera.lookAt(planetPosition); // Orient the camera towards the planet
-
+      // Orients the camera to face the planet’s position immediately.
+      camera.lookAt(planetPosition);
+      // Sets targetCameraPosition to a point where the planet (e.g., Venus) is nicely framed, with the camera positioned offset units away
       targetCameraPosition.copy(planetPosition).add(camera.position.clone().sub(planetPosition).normalize().multiplyScalar(offset));
+      // Activates the camera movement animation toward the planet.
       isMovingTowardsPlanet = true;
     }
   }
 }
 
+// define an offset value for each planet and check what planet is it
 function identifyPlanet(clickedObject) {
-  // Logic to identify which planet was clicked based on the clicked object, different offset for camera distance
-        if (clickedObject.material === mercury.planet.material) {
-          offset = 10;
-          return mercury;
-        } else if (clickedObject.material === venus.Atmosphere.material) {
-          offset = 25;
-          return venus;
-        } else if (clickedObject.material === earth.Atmosphere.material) {
-          offset = 25;
-          return earth;
-        } else if (clickedObject.material === mars.planet.material) {
-          offset = 15;
-          return mars;
-        } else if (clickedObject.material === jupiter.planet.material) {
-          offset = 50;
-          return jupiter;
-        } else if (clickedObject.material === saturn.planet.material) {
-          offset = 50;
-          return saturn;
-        } else if (clickedObject.material === uranus.planet.material) {
-          offset = 25;
-          return uranus;
-        } else if (clickedObject.material === neptune.planet.material) {
-          offset = 20;
-          return neptune;
-        } else if (clickedObject.material === pluto.planet.material) {
-          offset = 10;
-          return pluto;
-        } 
-
+  if (clickedObject.material === mercury.planet.material) {
+    offset = 10;
+    return mercury;
+  } else if (clickedObject.material === venus.Atmosphere.material) {
+    offset = 25;
+    return venus;
+  } else if (clickedObject.material === earth.Atmosphere.material) {
+    offset = 25;
+    return earth;
+  } else if (clickedObject.material === mars.planet.material) {
+    offset = 15;
+    return mars;
+  } else if (clickedObject.material === jupiter.planet.material) {
+    offset = 50;
+    return jupiter;
+  } else if (clickedObject.material === saturn.planet.material) {
+    offset = 50;
+    return saturn;
+  } else if (clickedObject.material === uranus.planet.material) {
+    offset = 25;
+    return uranus;
+  } else if (clickedObject.material === neptune.planet.material) {
+    offset = 20;
+    return neptune;
+  } else if (clickedObject.material === pluto.planet.material) {
+    offset = 10;
+    return pluto;
+  }
   return null;
 }
 
-// ******  SHOW PLANET INFO AFTER SELECTION  ******
+// ****** SHOW PLANET INFO AFTER SELECTION ******
+// A function to display information about a specified planet.
 function showPlanetInfo(planet) {
+  // Retrieves the HTML element that contains the planet information panel.
   var info = document.getElementById('planetInfo');
   var name = document.getElementById('planetName');
   var details = document.getElementById('planetDetails');
-
+  // Sets the text content of the planetName element to the planet’s name.
+  // This updates the UI to show the selected planet’s name as a heading, e.g., “Jupiter” when Jupiter is clicked.
   name.innerText = planet;
+  // Sets the text content of the planetDetails element to a formatted string containing the planet’s properties.
   details.innerText = `Radius: ${planetData[planet].radius}\nTilt: ${planetData[planet].tilt}\nRotation: ${planetData[planet].rotation}\nOrbit: ${planetData[planet].orbit}\nDistance: ${planetData[planet].distance}\nMoons: ${planetData[planet].moons}\nInfo: ${planetData[planet].info}`;
-
+  // Makes the planetInfo panel visible in the UI.
+  // info is the planetInfo <div> retrieved earlier.
+  // style.display = 'block' changes the CSS display property to block, making the element visible.
+  // The panel is initially hidden (display: none in the HTML or set by closeInfo), so this line shows it after updating the name and details.
   info.style.display = 'block';
 }
+
+// Declares a boolean flag to indicate whether the camera is currently zooming out from a planet to a default view.
 let isZoomingOut = false;
+// Declares a Vector3 object specifying the camera’s destination position when zooming out to the default view.
 let zoomOutTargetPosition = new THREE.Vector3(-175, 115, 5);
-// close 'x' button function
+
+// Defines a function to close the planet information panel, resume orbital movement, and zoom the camera out to the default view.
 function closeInfo() {
+  // Retrieves the HTML element containing the planet information panel.
   var info = document.getElementById('planetInfo');
+  // Hides the planet information panel.
+  // Setting style.display = 'none' makes the planetInfo <div> invisible, removing it from the UI.
   info.style.display = 'none';
+  // Resumes the orbital movement of planets.
+  // settings.accelerationOrbit is a GUI-controlled property (defined in settings) that scales the speed of planetary orbits around the sun.
+  // It’s set to 0 in onDocumentMouseDown when a planet is clicked to pause orbits
   settings.accelerationOrbit = 1;
+  // isZoomingOut is a boolean flag (defined earlier) that indicates whether the camera is animating back to zoomOutTargetPosition ((-175, 115, 5)).
+  // Setting it to true triggers the zoom-out in the animate function
   isZoomingOut = true;
+  // Resets the OrbitControls target to the sun’s position.
+  // controls is the THREE.OrbitControls object managing camera movement.
+  // controls.target is a THREE.Vector3 specifying the point the camera orbits around and looks at.
+  // set(0, 0, 0) sets the target to the origin, where the sun is located, as planets orbit around (0, 0, 0).
+  // Context: This makes the camera rotate around the sun after zooming out, providing a natural view of the solar system.
   controls.target.set(0, 0, 0);
 }
+
+// Makes the closeInfo function globally accessible for HTML event handlers.
 window.closeInfo = closeInfo;
-// close info when clicking another planet
+
+// Defines a function to close the planet information panel and resume orbital movement without zooming out the camera.
 function closeInfoNoZoomOut() {
+  // Retrieves the planet information panel element.
   var info = document.getElementById('planetInfo');
+  // Hides the planet information panel.
   info.style.display = 'none';
+  // // Resumes the orbital movement of planets.
   settings.accelerationOrbit = 1;
 }
-// ******  SUN  ******
-let sunMat;
 
-const sunSize = 697/40; // 40 times smaller scale than earth
-const sunGeom = new THREE.SphereGeometry(sunSize, 32, 20);
-sunMat = new THREE.MeshStandardMaterial({
-  emissive: 0xFFF88F,
-  emissiveMap: loadTexture.load(sunTexture),
-  emissiveIntensity: settings.sunIntensity
+// ****** SUN ******
+// Implements Perlin noise, a type of gradient noise used to generate natural-looking patterns.
+const noiseGLSL = `
+vec3 mod289(vec3 x) {
+  return x - floor(x * (1.0 / 289.0)) * 289.0;
+}
+
+vec4 mod289(vec4 x) {
+  return x - floor(x * (1.0 / 289.0)) * 289.0;
+}
+
+vec4 permute(vec4 x) {
+  return mod289(((x * 34.0) + 1.0) * x);
+}
+
+vec4 taylorInvSqrt(vec4 r) {
+  return 1.79284291400159 - 0.85373472095314 * r;
+}
+
+float noise(vec3 v) {
+  const vec2 C = vec2(1.0 / 6.0, 1.0 / 3.0);
+  const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+
+  vec3 i = floor(v + dot(v, C.yyy));
+  vec3 x0 = v - i + dot(i, C.xxx);
+
+  vec3 g = step(x0.yzx, x0.xyz);
+  vec3 l = 1.0 - g;
+  vec3 i1 = min(g.xyz, l.zxy);
+  vec3 i2 = max(g.xyz, l.zxy);
+
+  vec3 x1 = x0 - i1 + 1.0 * C.xxx;
+  vec3 x2 = x0 - i2 + 2.0 * C.xxx;
+  vec3 x3 = x0 - 1. + 3.0 * C.xxx;
+
+  i = mod289(i);
+  vec4 p = permute(permute(permute(i.z + vec4(0.0, i1.z, i2.z, 1.0)) + i.y + vec4(0.0, i1.y, i2.y, 1.0)) + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+
+  float n_ = 1.0 / 7.0;
+  vec3 ns = n_ * D.wyz - D.xzx;
+
+  vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+
+  vec4 x_ = floor(j * ns.z);
+  vec4 y_ = floor(j - 7.0 * x_);
+
+  vec4 x = x_ * ns.x + ns.yyyy;
+  vec4 y = y_ * ns.x + ns.yyyy;
+  vec4 h = 1.0 - abs(x) - abs(y);
+
+  vec4 b0 = vec4(x.xy, y.xy);
+  vec4 b1 = vec4(x.zw, y.zw);
+
+  vec4 s0 = floor(b0) * 2.0 + 1.0;
+  vec4 s1 = floor(b1) * 2.0 + 1.0;
+  vec4 sh = -step(h, vec4(0.0));
+
+  vec4 a0 = b0.xzyw + s0.xzyw * sh.xxyy;
+  vec4 a1 = b1.xzyw + s1.xzyw * sh.zzww;
+
+  vec3 p0 = vec3(a0.xy, h.x);
+  vec3 p1 = vec3(a0.zw, h.y);
+  vec3 p2 = vec3(a1.xy, h.z);
+  vec3 p3 = vec3(a1.zw, h.w);
+
+  vec4 norm = taylorInvSqrt(vec4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3)));
+  p0 *= norm.x;
+  p1 *= norm.y;
+  p2 *= norm.z;
+  p3 *= norm.w;
+
+  vec4 m = max(0.6 - vec4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)), 0.0);
+  m = m * m;
+  return 42.0 * dot(m * m, vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));
+}
+`;
+
+// Declares a variable to store the shader material for the sun.
+// This variable is used to create a material with a procedural, noise-based texture for the sun, enabling dynamic visual effects like a fiery, turbulent surface.
+let sunMaterial;
+
+// Defines the radius of the sun’s geometry.
+// sunSize is calculated as 697 / 40 ≈ 17.425 units.
+// The value 697 likely represents the sun’s real-world radius (approximately 696,340 km) scaled down for the simulation. 
+// Dividing by 40 adjusts the size to fit the scene’s scale, where planets like Earth or Jupiter have smaller relative sizes.
+// This ensures the sun appears proportionally large compared to planets but manageable within the 3D scene.
+const sunSize = 697 / 40;
+// Creates a spherical geometry for the sun.
+// sunSize (≈17.425): The radius of the sphere.
+// 32: The number of width segments (horizontal divisions).
+// 32: The number of height segments (vertical divisions).
+const sunGeom = new THREE.SphereGeometry(sunSize, 32, 32);
+
+// Creates a custom shader material for the sun, using vertex and fragment shaders with uniforms and Perlin noise.
+// THREE.ShaderMaterial allows custom GLSL shaders, giving precise control over rendering.
+// The material is configured with:
+//    Uniforms: Variables passed from JavaScript to the shaders.
+//    Vertex Shader: Processes vertex positions and passes data to the fragment shader.
+//    Fragment Shader: Computes the color of each pixel, using noise for a fiery effect.
+sunMaterial = new THREE.ShaderMaterial({
+  // Defines uniform variables accessible in both shaders
+  uniforms: {
+    // A float tracking animation time, updated in the animate function.
+    // It animates the noise pattern, making the sun’s surface appear dynamic.
+    time: { value: 0 },
+    // A float controlling the brightness of the sun’s glow, initially set to 5.0. It’s adjusted via the GUI (sunIntensity).
+    emissiveIntensity: { value: 5.0 }
+  },
+  // Defines the vertex shader, which processes the sun’s geometry vertices.
+  vertexShader: `
+    // Passes the UV coordinates (2D texture coordinates, [0, 1]) to the fragment shader.
+    varying vec2 vUv;
+    // Passes the vertex’s local position (e.g., (x, y, z) on the sphere) to the fragment shader.
+    varying vec3 vPosition;
+    void main() {
+      // Copies the built-in uv attribute (UV coordinates of the sphere) to vUv for fragment shader use.
+      vUv = uv;
+      // Copies the vertex’s local position to vPosition for noise calculations.
+      vPosition = position;
+      // Transforms the vertex position from local to clip space, determining where it appears on the screen.
+      // Local space (also called object space or model space) is the coordinate system relative to the object itself, where a 3D model’s vertices are defined before any transformations (e.g., translation, rotation, scaling) are applied.
+      // Clip space is the coordinate system after applying all transformations (model, view, and projection) to a vertex, where the vertex’s position is ready for clipping and projection onto the 2D screen.
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  // Defines the fragment shader, which computes the color of each pixel on the sun’s surface, using Perlin noise for a fiery effect.
+  fragmentShader: `
+    // Animation time, used to shift the noise pattern.
+    uniform float time;
+    // Brightness multiplier, controlled via GUI.
+    uniform float emissiveIntensity;
+    // Vertex position from the vertex shader, used for noise input.
+    varying vec2 vUv;
+    varying vec3 vPosition;
+    // Includes the Perlin noise function (previously analyzed), which generates a smooth noise value.
+    ${noiseGLSL}
+    void main() {
+      // Calls the noise function with a 3D input: vPosition (vertex position on the sphere) offset by time.
+      // The time offset animates the noise, making the sun’s surface appear to flicker or roil.
+      // noiseValue is in [-1, 1] (due to noise’s scaling by 42.0 in noiseGLSL).
+      float noiseValue = noise(vPosition + time);
+
+      // Interpolates between two colors based on noiseValue.
+      vec3 color = mix(vec3(1.0, 0.2, 0.0), vec3(1.0, 0.4, 0.1), noiseValue);
+      // Normalizes noiseValue from [-1, 1] to [0, 1] using (noiseValue * 0.5 + 0.5).
+      // Multiplies by emissiveIntensity and 2.0 to amplify brightness, simulating the sun’s glow.
+      float intensity = (noiseValue * 0.5 + 0.5) * emissiveIntensity * 2.0;
+
+      // Sets the final pixel color by multiplying color by intensity.
+      // The alpha channel is 1.0 (fully opaque).
+      // This produces a bright, fiery effect with varying orange-red hues.
+      gl_FragColor = vec4(color * intensity, 1.0);
+    }
+  `
 });
-const sun = new THREE.Mesh(sunGeom, sunMat);
+
+// Creates a mesh combining the sun’s geometry and material.
+// THREE.Mesh combines a geometry (sunGeom) and a material (sunMaterial) to form a renderable 3D object.
+// sunGeom defines the sphere’s shape (radius ~17.425, 32x32 segments).
+// sunMaterial defines the appearance (noise-based fiery texture).
+// The sun mesh is positioned at the scene’s origin (0, 0, 0) by default, as no position is set.
+const sun = new THREE.Mesh(sunGeom, sunMaterial);
+// Adds the sun mesh to the Three.js scene.
 scene.add(sun);
 
-//point light in the sun
-const pointLight = new THREE.PointLight(0xFDFFD3 , 1200, 400, 1.4);
+// Defines the creation and setup of the corona (the glowing outer atmosphere of the sun).
+// Defines the radius of the corona’s geometry, making it slightly larger than the sun.
+const coronaSize = sunSize * 1.075; 
+// Creates a spherical geometry for the corona.
+// This geometry forms the corona’s 3D model, positioned at the scene’s origin (0, 0, 0) (same as the sun), creating a layered effect.
+const coronaGeom = new THREE.SphereGeometry(coronaSize, 32, 32);
+// Creates a custom shader material for the corona, using vertex and fragment shaders to produce a glowing rim effect.
+const coronaMaterial = new THREE.ShaderMaterial({
+  uniforms: {
+    // A float for potential animation (e.g., animating noise or glow over time), updated in animate
+    time: { value: 0 },
+    // A float controlling the brightness of the corona’s glow, initially set to 1.7. It’s adjusted via the GUI (sunIntensity)
+    glowIntensity: { value: 1.7 } 
+  },
+  // Processes the corona’s geometry vertices, passing normal and position data to the fragment shader.
+  vertexShader: `
+    // Passes the normalized vertex normal (direction perpendicular to the surface) to the fragment shader.
+    varying vec3 vNormal;
+    // Passes the vertex’s local position (e.g., (x, y, z) on the corona’s sphere) to the fragment shader.
+    varying vec3 vPosition;
+    void main() {
+      // Normalizes the built-in normal attribute (vertex normal in local space) to ensure unit length, used for rim lighting calculations.
+      vNormal = normalize(normal);
+      // Copies the vertex’s local position (position attribute, radius ~18.732) for use in the fragment shader.
+      vPosition = position;
+      // Transforms the vertex from local space to clip space
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  // Computes the color and transparency of each pixel on the corona, creating a glowing rim effect
+  fragmentShader: `
+    // Animation time
+    uniform float time;
+    // Brightness multiplier (1.7 default, scaled by GUI).
+    uniform float glowIntensity;
+    // Normalized vertex normal from the vertex shader.
+    varying vec3 vNormal;
+    // Vertex position in local space.
+    varying vec3 vPosition;
+    void main() {
+      // Computes the view direction from the vertex to the camera.
+      vec3 viewDir = normalize(vPosition - cameraPosition);
+      // Computes a rim lighting factor using the dot product of vNormal and viewDir.
+      // dot(vNormal, viewDir) is the cosine of the angle between the normal and view direction, ranging from -1 (facing away) to 1 (facing toward).
+      // abs(dot) makes it [0, 1], and 1.0 - abs(dot) inverts it, so rim is 1.0 at the edges (where normal is perpendicular to view) and 0.0 at the center (facing the camera).
+      // This creates a glow strongest at the corona’s edges.
+      float rim = 1.0 - abs(dot(vNormal, viewDir));
+      // Calculates the glow intensity.
+      // pow(rim, 1.5) raises rim to the 1.5th power, softening the rim effect (lower exponent = broader glow; commented pow(rim, 5.0) would be sharper).
+      // Multiplies by glowIntensity (e.g., 1.7) to scale brightness.
+      // Adds 0.3 * glowIntensity as a base glow, ensuring the corona is faintly visible even away from the edges.
+      float glow = pow(rim, 1.5) * glowIntensity + 0.3 * glowIntensity;
+      // Defines a warm, yellowish-orange color, resembling the corona’s natural hue.
+      vec3 color = vec3(1.0, 0.7, 0.3);
+      // Sets the final pixel color and alpha.
+      // color * glow: Scales the color by the glow intensity, making edges brighter.
+      // glow * 0.7: Sets the alpha (transparency), with 0.7 ensuring partial transparency (stronger at edges, fainter elsewhere).
+      gl_FragColor = vec4(color * glow, glow * 0.7); 
+
+      // The fragment shader creates a glowing halo around the sun, brightest at the edges due to rim lighting, with a soft, translucent appearance. 
+      // The glowIntensity uniform ties to the GUI for user control.
+    }
+  `,
+  // Enables transparency for the corona material.
+  // This ensures the corona blends smoothly with the sun and background, creating a wispy, atmospheric effect.
+  transparent: true,
+  // Sets the blending mode to additive, enhancing the glow effect.
+  // THREE.AdditiveBlending adds the corona’s color to the background color, making bright areas (e.g., edges) appear to glow more intensely.
+  // Unlike normal blending, additive blending doesn’t darken the background, ideal for glowing effects like the corona.
+  blending: THREE.AdditiveBlending,
+  // Prevents the corona from writing to the depth buffer.
+  // ensures the corona doesn’t block other objects (e.g., the sun or planets) in the depth test, allowing them to render correctly even if behind the corona.
+  // Since the corona is transparent and additive, it doesn’t need to affect the depth buffer.
+  // This ensures the sun (radius ~17.425) and planets are visible through the corona (radius ~18.732), maintaining proper rendering order.
+  depthWrite: false,
+  // Renders only the back (inner) faces of the corona’s geometry.
+  // Means only the inner surface of the sphere (facing inward) is rendered, not the outer surface.
+  // Since the corona is a sphere slightly larger than the sun, rendering the back side ensures the glow is visible from outside, as if the camera is looking at the inner glow of a hollow shell.
+  // This prevents the corona from obscuring the sun and creates a halo effect around it.
+  side: THREE.BackSide
+});
+// Creates a mesh combining the corona’s geometry and material.
+const corona = new THREE.Mesh(coronaGeom, coronaMaterial);
+// Adds the corona mesh to the Three.js scene.
+scene.add(corona);
+
+// Point light in the sun (unchanged)
+const pointLight = new THREE.PointLight(0xFDFFD3, 1200, 400, 1.4);
 scene.add(pointLight);
 
-// ******  PLANET CREATION FUNCTION  ******
-function createPlanet(planetName, size, position, tilt, texture, bump, ring, atmosphere, moons){
-
+// ****** PLANET CREATION FUNCTION ******
+// Defines the function with parameters to configure the planet.
+/*
+function createPlanet(planetName, size, position_a, position_b, orbitcenter_x, orbitcenter_y, tilt, texture, bump, ring, atmosphere, moons) {
+  // Declares a variable to store the planet’s material.
+  // Will be assigned a THREE.MeshPhongMaterial or a provided material based on conditions.
   let material;
-  if (texture instanceof THREE.Material){
+
+  // Uses a pre-defined material if provided.
+  if (texture instanceof THREE.Material) {
     material = texture;
   } 
-  else if(bump){
+  // Creates a material with a texture and bump map if a bump map is provided.
+  else if (bump) {
     material = new THREE.MeshPhongMaterial({
+    // The color texture (e.g., 'earth.jpg'), loaded via loadTexture.load
     map: loadTexture.load(texture),
+    // The bump map for surface detail, adding shading to simulate height without extra geometry.
     bumpMap: loadTexture.load(bump),
+    // Scales the bump effect’s intensity (0.7 is moderate, enhancing terrain like mountains).
     bumpScale: 0.7
     });
-  }
+  } 
+  // Creates a material with only a color texture if no bump map is provided.
   else {
     material = new THREE.MeshPhongMaterial({
+    // The color texture (e.g., 'earth.jpg'), loaded via loadTexture.load
     map: loadTexture.load(texture)
     });
-  } 
+  }
+  // Stores the planet’s name for the return object.
+  const name = planetName;
+  // Creates a spherical geometry for the planet.
+  // size: Radius 
+  // 32: Width segments (horizontal).
+  // 20: Height segments (vertical).
+  // Fewer height segments (20 vs. sun’s 32) optimize performance for smaller planets.
+  const geometry = new THREE.SphereGeometry(size, 32, 20);
+  // Creates a mesh for the planet’s surface.
+  const planet = new THREE.Mesh(geometry, material);
+  // Creates a container for the planet’s orbital rotation.
+  // THREE.Object3D is a generic 3D object used as a pivot point.
+  // Will hold the planetSystem and rotate around the sun in animate
+  // Represents the planet’s orbital path around the sun at (0, 0, 0).
+  const planet3d = new THREE.Object3D;
+  // Creates a group to hold the planet, its orbit, rings, and moons.
+  // THREE.Group organizes related objects, allowing them to be transformed together.
+  // Contains the planet mesh, orbit path, and optional rings/moons.
+  const planetSystem = new THREE.Group();
+  // Adds the planet mesh to the planet system group.
+  planetSystem.add(planet);
+  // Declares variables for optional atmosphere and ring meshes.
+  // Will be assigned if atmosphere or ring parameters are provided, used in the return object.
+  let Atmosphere;
+  let Ring;
 
+  // Positions the planet at its orbital distance from the sun.
+  planet.position.x = position_a;
+  planet3d.position.set(orbitcenter_x, 0, orbitcenter_y)
+  // Applies the planet’s axial tilt.
+  // Simulates the planet’s axial tilt, affecting its appearance and ring orientation.
+  planet.rotation.z = tilt * Math.PI / 180;
+
+  // Defines the planet’s orbital path as an ellipse.
+  const orbitPath = new THREE.EllipseCurve(
+    orbitcenter_x, orbitcenter_y,
+    // 0, 0, // Center (sun’s position in the orbital plane).
+    position_a, position_b, // X and Y radii
+    0, 2 * Math.PI, // Start and end angles (full circle).
+    false, // Counter-clockwise rotation.
+    0 // Rotation offset.
+  );
+  
+
+  // Generates 100 points along the orbit curve.
+  // getPoints(100) samples the ellipse at 100 evenly spaced points, creating a smooth path.
+  const pathPoints = orbitPath.getPoints(100);
+  // Creates a geometry for the orbit path.
+  // setFromPoints(pathPoints) sets the vertices to the orbit’s points.
+  // Defines the shape of the orbit as a circular line.
+  const orbitGeometry = new THREE.BufferGeometry().setFromPoints(pathPoints);
+  // Creates a material for the orbit path.
+  // color: 0xFFFFFF: White color.
+  // transparent: true: Allows opacity.
+  // opacity: 0.03: Very faint, making the orbit subtle.
+  const orbitMaterial = new THREE.LineBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.03 });
+  // Creates a line loop to render the orbit.
+  // THREE.LineLoop connects the points into a closed loop (circle).
+  // Combines orbitGeometry (points) and orbitMaterial (faint white).
+  const orbit = new THREE.LineLoop(orbitGeometry, orbitMaterial);
+  // Rotates the orbit to lie in the orbital plane.
+  // Rotates the orbit 90° around the x-axis, aligning it with the xy-plane (since EllipseCurve is in the xy-plane by default).
+  orbit.rotation.x = Math.PI / 2;
+  // Adds the orbit to the planet system.
+  // planetSystem.add(orbit);
+  scene.add(orbit);
+  // Stores the orbit in a global orbits array.
+  orbits.push(orbit);
+
+  // Creates a ring system for planets like Saturn.
+  if (ring) {
+    // THREE.RingGeometry creates a flat ring with:
+    // innerRadius: Inner edge
+    // outerRadius: Outer edge
+    // 30: Segments for smoothness.
+    const RingGeo = new THREE.RingGeometry(ring.innerRadius, ring.outerRadius, 30);
+    // THREE.MeshStandardMaterial uses physically-based rendering.
+    // map: Loads the ring texture
+    // side: THREE.DoubleSide: Renders both sides, visible from any angle.
+    const RingMat = new THREE.MeshStandardMaterial({
+      map: loadTexture.load(ring.texture),
+      side: THREE.DoubleSide
+    });
+    // Creates and adds the ring to planetSystem.
+    Ring = new THREE.Mesh(RingGeo, RingMat);
+    planetSystem.add(Ring);
+
+    // Positions the ring at the planet’s orbital distance.
+    Ring.position.x = position_a;
+    // Rotates 90° around x-axis to lie flat.
+    Ring.rotation.x = -0.5 * Math.PI;
+    // Applies the planet’s tilt around y-axis for correct orientation
+    Ring.rotation.y = -tilt * Math.PI / 180;
+  }
+
+  // Adds a glowing atmosphere layer for planets like Earth.
+  if (atmosphere) {
+    // Creates a sphere slightly larger than the planet.
+    const atmosphereGeom = new THREE.SphereGeometry(size + 0.1, 32, 20);
+    // Uses a semi-transparent texture.
+    // transparent: true, opacity: 0.4: Makes the atmosphere faint.
+    const atmosphereMaterial = new THREE.MeshPhongMaterial({
+      map: loadTexture.load(atmosphere),
+      transparent: true,
+      opacity: 0.4,
+      depthTest: true, // Ensures correct depth sorting.
+      depthWrite: false // Prevents the atmosphere from blocking the planet.
+    });
+
+    // Creates the atmosphere mesh.
+    Atmosphere = new THREE.Mesh(atmosphereGeom, atmosphereMaterial);
+    // Rotates it ~23.5° (0.41 radians) around z-axis, possibly to align with the planet’s tilt or texture.
+    Atmosphere.rotation.z = 0.41;
+    // Adds it as a child of planet, so it moves and rotates with the planet.
+    planet.add(Atmosphere);
+  }
+
+  // Adds moons orbiting the planet.
+  if (moons) {
+    // Iterates over each moon
+    moons.forEach(moon => {
+      // Creates a THREE.MeshStandardMaterial with a texture and optional bump map (scale 0.5, subtler than planet’s 0.7).
+      let moonMaterial;
+      if (moon.bump) {
+        moonMaterial = new THREE.MeshStandardMaterial({
+          map: loadTexture.load(moon.texture),
+          bumpMap: loadTexture.load(moon.bump),
+          bumpScale: 0.5
+        });
+      } else {
+        moonMaterial = new THREE.MeshStandardMaterial({
+          map: loadTexture.load(moon.texture)
+        });
+      }
+      // Creates a sphere with moon.size.
+      const moonGeometry = new THREE.SphereGeometry(moon.size, 32, 20);
+      // Creates the moon mesh.
+      const moonMesh = new THREE.Mesh(moonGeometry, moonMaterial);
+      // Positions it at size * 1.5 (e.g., Earth’s Moon at ~0.24 units from Earth’s center) along the x-axis.
+      const moonOrbitDistance = size * 1.5;
+      // Positions the moon at the calculated distance along the x-axis relative to the planet.
+      moonMesh.position.set(moonOrbitDistance, 0, 0);
+      // Adds it to planetSystem.
+      planetSystem.add(moonMesh);
+      // Stores the mesh in moon.mesh for later reference (e.g., animation).
+      moon.mesh = moonMesh;
+    });
+  }
+
+  // Positions planetSystem (planet, orbit, rings, moons) under planet3d, which rotates around the sun.
+  planet3d.add(planetSystem);
+  // Adds the entire planet hierarchy to the scene.
+  scene.add(planet3d);
+
+  const orbitAngle = 0;
+  // Returns an object with references to the planet’s components.
+  return { name, planet, planet3d, Atmosphere, moons, planetSystem, Ring, orbitPath, orbitcenter_x, orbitcenter_y, orbitAngle, orbitSpeed: 0.001};
+}
+*/
+
+function createPlanet(planetName, size, position_a, position_b, orbitcenter_x, orbitcenter_y, tilt, texture, bump, ring, atmosphere, moons) {
+  let material;
+  if (texture instanceof THREE.Material) {
+    material = texture;
+  } else if (bump) {
+    material = new THREE.MeshPhongMaterial({
+      map: loadTexture.load(texture),
+      bumpMap: loadTexture.load(bump),
+      bumpScale: 0.7
+    });
+  } else {
+    material = new THREE.MeshPhongMaterial({
+      map: loadTexture.load(texture)
+    });
+  }
   const name = planetName;
   const geometry = new THREE.SphereGeometry(size, 32, 20);
   const planet = new THREE.Mesh(geometry, material);
-  const planet3d = new THREE.Object3D;
   const planetSystem = new THREE.Group();
   planetSystem.add(planet);
   let Atmosphere;
   let Ring;
-  planet.position.x = position;
+
+  // Apply tilt to the planet
   planet.rotation.z = tilt * Math.PI / 180;
 
-  // add orbit path
+  // Define the elliptical orbit
   const orbitPath = new THREE.EllipseCurve(
-    0, 0,            // ax, aY
-    position, position, // xRadius, yRadius
-    0, 2 * Math.PI,   // aStartAngle, aEndAngle
-    false,            // aClockwise
-    0                 // aRotation
-);
+    orbitcenter_x, orbitcenter_y, // Center of the ellipse
+    position_a, position_b,       // X and Y radii
+    0, 2 * Math.PI,              // Full circle
+    false,                       // Counter-clockwise
+    0                            // No rotation offset
+  );
 
+  // Create orbit visualization
   const pathPoints = orbitPath.getPoints(100);
   const orbitGeometry = new THREE.BufferGeometry().setFromPoints(pathPoints);
   const orbitMaterial = new THREE.LineBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.03 });
   const orbit = new THREE.LineLoop(orbitGeometry, orbitMaterial);
-  orbit.rotation.x = Math.PI / 2;
-  planetSystem.add(orbit);
-  orbits.push(orbit); // Thêm quỹ đạo vào mảng
-  //add ring
-  if(ring)
-  {
-    const RingGeo = new THREE.RingGeometry(ring.innerRadius, ring.outerRadius,30);
+  orbit.rotation.x = Math.PI / 2; // Align with xy-plane
+  scene.add(orbit);
+  orbits.push(orbit);
+
+  // Set initial position based on orbit path at angle 0
+  const initialPoint = orbitPath.getPoint(0); // t = 0 for initial position
+  planetSystem.position.set(initialPoint.x, 0, initialPoint.y);
+
+  // Handle rings
+  if (ring) {
+    const RingGeo = new THREE.RingGeometry(ring.innerRadius, ring.outerRadius, 30);
     const RingMat = new THREE.MeshStandardMaterial({
       map: loadTexture.load(ring.texture),
       side: THREE.DoubleSide
     });
     Ring = new THREE.Mesh(RingGeo, RingMat);
     planetSystem.add(Ring);
-    Ring.position.x = position;
-    Ring.rotation.x = -0.5 *Math.PI;
+    Ring.rotation.x = -0.5 * Math.PI;
     Ring.rotation.y = -tilt * Math.PI / 180;
   }
-  
-  //add atmosphere
-  if(atmosphere){
-    const atmosphereGeom = new THREE.SphereGeometry(size+0.1, 32, 20);
+
+  // Handle atmosphere
+  if (atmosphere) {
+    const atmosphereGeom = new THREE.SphereGeometry(size + 0.1, 32, 20);
     const atmosphereMaterial = new THREE.MeshPhongMaterial({
-      map:loadTexture.load(atmosphere),
+      map: loadTexture.load(atmosphere),
       transparent: true,
       opacity: 0.4,
       depthTest: true,
       depthWrite: false
-    })
-    Atmosphere = new THREE.Mesh(atmosphereGeom, atmosphereMaterial)
-    
+    });
+    Atmosphere = new THREE.Mesh(atmosphereGeom, atmosphereMaterial);
     Atmosphere.rotation.z = 0.41;
     planet.add(Atmosphere);
   }
 
-  //add moons
-  if(moons){
+  // Handle moons
+  if (moons) {
     moons.forEach(moon => {
       let moonMaterial;
-      
-      if(moon.bump){
+      if (moon.bump) {
         moonMaterial = new THREE.MeshStandardMaterial({
           map: loadTexture.load(moon.texture),
           bumpMap: loadTexture.load(moon.bump),
           bumpScale: 0.5
         });
-      } else{
+      } else {
         moonMaterial = new THREE.MeshStandardMaterial({
           map: loadTexture.load(moon.texture)
         });
@@ -348,117 +910,179 @@ function createPlanet(planetName, size, position, tilt, texture, bump, ring, atm
       moon.mesh = moonMesh;
     });
   }
-  //add planet system to planet3d object and to the scene
-  planet3d.add(planetSystem);
-  scene.add(planet3d);
-  return {name, planet, planet3d, Atmosphere, moons, planetSystem, Ring};
+
+  // Add planetSystem directly to the scene (no planet3d)
+  scene.add(planetSystem);
+
+  let orbitAngle = 0;
+  return { name, planet, planetSystem, Atmosphere, moons, Ring, orbitPath, orbitcenter_x, orbitcenter_y, orbitAngle, orbitSpeed: 0.001 };
 }
 
-
-// ******  LOADING OBJECTS METHOD  ******
+// ****** LOADING OBJECTS METHOD ******
+// Function to load an external 3D model (GLTF file), places it at a specified position, scales it uniformly, adds it to the Three.js scene, 
+// and optionally calls a user-provided callback function with the loaded object.
+// Defines the function with parameters to load and configure a GLTF model.
 function loadObject(path, position, scale, callback) {
+  // Creates an instance of Three.js’s GLTFLoader to load GLTF models.
   const loader = new GLTFLoader();
-
+  // Initiates the asynchronous loading of the GLTF file, handling success and error cases.
   loader.load(path, function (gltf) {
-      const obj = gltf.scene;
-      obj.position.set(position, 0, 0);
-      obj.scale.set(scale, scale, scale);
-      scene.add(obj);
-      if (callback) {
-        callback(obj);
-      }
-  }, undefined, function (error) {
-      console.error('An error happened', error);
+    const obj = gltf.scene; // Extracts the root scene object from the loaded GLTF data. obj is set to gltf.scene, the renderable 3D object
+    obj.position.set(position, 0, 0); // Positions the loaded model in the scene.
+    obj.scale.set(scale, scale, scale); // Uniformly scales the model to the desired size.
+    scene.add(obj); // Adds the loaded model to the Three.js scene.
+    if (callback) { // Executes an optional callback function, passing the loaded object.
+      callback(obj); // The callback can perform additional setup, e.g., rotating the object, adding animations, or attaching it to a planet’s system.
+    }
+  }, undefined, function (error) { // The error callback is triggered if the GLTF file fails to load
+    console.error('An error happened', error);
   });
 }
 
-// ******  ASTEROIDS  ******
+// ****** ASTEROIDS ******
+// Declares a global array to store all asteroid meshes.
 const asteroids = [];
+// Function to load a single GLTF model (representing an asteroid) and creates multiple copies, randomly placing them within a specified orbital range around the sun, with varied scales
 function loadAsteroids(path, numberOfAsteroids, minOrbitRadius, maxOrbitRadius) {
+  // Creates a GLTFLoader instance to load the asteroid model.
   const loader = new GLTFLoader();
+  // Asynchronously loads the GLTF model, handling success and error cases.
   loader.load(path, function (gltf) {
-      gltf.scene.traverse(function (child) {
-          if (child.isMesh) {
-              for (let i = 0; i < numberOfAsteroids / 12; i++) { // Divide by 12 because there are 12 asteroids in the pack
-                  const asteroid = child.clone();
-                  const orbitRadius = THREE.MathUtils.randFloat(minOrbitRadius, maxOrbitRadius);
-                  const angle = Math.random() * Math.PI * 2;
-                  const x = orbitRadius * Math.cos(angle);
-                  const y = 0;
-                  const z = orbitRadius * Math.sin(angle);
-                  child.receiveShadow = true;
-                  asteroid.position.set(x, y, z);
-                  asteroid.scale.setScalar(THREE.MathUtils.randFloat(0.8, 1.2));
-                  scene.add(asteroid);
-                  asteroids.push(asteroid);
-              }
-          }
-      });
+    // Iterates through the GLTF scene’s hierarchy to find renderable meshes.
+    gltf.scene.traverse(function (child) {
+      // Checks if the current child is a renderable mesh.
+      if (child.isMesh) {
+        // Creates multiple asteroid instances by cloning the mesh.
+        // Loops numberOfAsteroids / 12 times (e.g., for numberOfAsteroids = 120, loops 10 times).
+        // Each iteration creates one asteroid instance.
+        // For numberOfAsteroids = 120 and a model with one mesh, this creates 10 asteroids (120 / 12); 
+        // If the model has 12 meshes, each cloned 10 times, it yields 120 total asteroids.
+        for (let i = 0; i < numberOfAsteroids / 12; i++) {
+          // Creates a copy of the mesh to represent a single asteroid.
+          const asteroid = child.clone();
+          // Generates a random orbital radius for the asteroid within the specified belt.
+          const orbitRadius = THREE.MathUtils.randFloat(minOrbitRadius, maxOrbitRadius);
+          // Generates a random angle for the asteroid’s position in the orbital plane.
+          const angle = Math.random() * Math.PI * 2;
+          // Calculates the x-coordinate of the asteroid’s position.
+          // Uses polar coordinates: x = r * cos(θ), where orbitRadius is the radius (r) and angle is the angle (θ).
+          // Positions the asteroid along the x-axis relative to the sun.
+          const x = orbitRadius * Math.cos(angle);
+          // Sets the y-coordinate to 0, keeping the asteroid in the orbital plane.
+          // Simplifies the simulation by assuming a flat asteroid belt.
+          const y = 0;
+          // Calculates the z-coordinate of the asteroid’s position.
+          // Uses polar coordinates: z = r * sin(θ), complementing the x-coordinate.
+          // Positions the asteroid along the z-axis relative to the sun.
+          const z = orbitRadius * Math.sin(angle);
+          // Enables the original mesh to receive shadows.
+          // receiveShadow = true allows the mesh to show shadows cast by other objects (planets or the sun) if shadows are enabled in the renderer and light source.
+          // Applied to child (the original mesh), but since asteroid is a clone, it inherits this property.
+          child.receiveShadow = true;
+          // Positions the cloned asteroid in the scene.
+          asteroid.position.set(x, y, z);
+          // Randomly scales the asteroid for visual variety.
+          // Some asteroids 20% larger, others 20% smaller, enhancing realism.
+          asteroid.scale.setScalar(THREE.MathUtils.randFloat(0.8, 1.2));
+          // Adds the asteroid mesh to the Three.js scene.
+          scene.add(asteroid);
+          // Stores the asteroid mesh in the global asteroids array.
+          asteroids.push(asteroid);
+        }
+      }
+    });
   }, undefined, function (error) {
-      console.error('An error happened', error);
+    // Handles loading errors by logging them.
+    console.error('An error happened', error);
   });
 }
 
-
-// Earth day/night effect shader material
+// Creates a THREE.ShaderMaterial for the Earth’s surface. 
+// Blending a day texture (e.g., continents, oceans) with a night texture (e.g., city lights) 
+// based on the angle between the sun’s light and the Earth’s surface normals.
+// Creates a custom shader material for Earth’s mesh.
 const earthMaterial = new THREE.ShaderMaterial({
   uniforms: {
+    // Defines variables passed to the shaders, accessible in both vertex and fragment shaders.
+    // Represents Earth’s surface in daylight
     dayTexture: { type: "t", value: loadTexture.load(earthTexture) },
+    // Loads the night texture
     nightTexture: { type: "t", value: loadTexture.load(earthNightTexture) },
+    // Calculate lighting direction.
     sunPosition: { type: "v3", value: sun.position }
   },
+  // Processes each vertex of Earth’s geometry, passing data to the fragment shader 
+  // and computing the vertex’s position in clip space.
   vertexShader: `
+    // Passes the vertex normal (in world space) to the fragment shader for lighting calculations.
     varying vec3 vNormal;
+    // Passes the UV coordinates (texture mapping) to sample textures.
     varying vec2 vUv;
+    // Passes the direction from the vertex to the sun for lighting.
     varying vec3 vSunDirection;
-
+    // The sun’s position ((0, 0, 0)), provided via uniforms.
     uniform vec3 sunPosition;
-
     void main() {
+      // Copies the vertex’s UV coordinates (built-in uv attribute, 0–1 range) for texture sampling in the fragment shader.
       vUv = uv;
+      // Transforms the vertex position (local space, position attribute, e.g., 
+      // on a sphere of radius 0.16) to world space using modelMatrix
+      // modelMatrix includes Earth’s position (e.g., (149.6, 0, 0)), rotation, and scale.
+      // worldPosition is the vertex’s absolute position in the scene (e.g., (149.6 + x, y, z) for a vertex on Earth’s surface).
       vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+      // Transforms the vertex normal (local space, normal attribute) to world space.
+      // vec4(normal, 0.0) treats the normal as a direction (not a point, so w = 0 ignores translation).
+      // normalize ensures the normal is a unit vector, critical for lighting calculations.
       vNormal = normalize(modelMatrix * vec4(normal, 0.0)).xyz;
+      // Calculates the direction from the vertex to the sun.
       vSunDirection = normalize(sunPosition - worldPosition.xyz);
+      // Transforms the vertex from local space to clip space,
+      // modelViewMatrix: Combines model (Earth’s position/rotation) and view (camera) transformations.
+      // projectionMatrix: Applies perspective projection (45° FOV, near 0.1, far 1000).
       gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
   `,
+  // Computes the final color of each pixel on Earth’s surface, blending day and night textures based on lighting intensity.
   fragmentShader: `
-    uniform sampler2D dayTexture;
-    uniform sampler2D nightTexture;
-
-    varying vec3 vNormal;
-    varying vec2 vUv;
-    varying vec3 vSunDirection;
-
+    uniform sampler2D dayTexture; // The day texture
+    uniform sampler2D nightTexture; // The night texture
+    varying vec3 vNormal; // World-space normal from the vertex shader.
+    varying vec2 vUv; // UV coordinates for texture sampling.
+    varying vec3 vSunDirection; // Direction to the sun.
     void main() {
+      // Calculates lighting intensity using the dot product of the normal and sun direction.
       float intensity = max(dot(vNormal, vSunDirection), 0.0);
+      // Samples the day texture at the UV coordinates (e.g., blue oceans, green continents).
       vec4 dayColor = texture2D(dayTexture, vUv);
-      vec4 nightColor = texture2D(nightTexture, vUv)* 0.2;
+      // Samples the night texture (e.g., yellow city lights on black).
+      vec4 nightColor = texture2D(nightTexture, vUv) * 0.2;
+      // Blends the night and day colors based on intensity.
+      // intensity = 0: Full nightColor (night side).
+      // intensity = 1: Full dayColor (day side).
+      // intensity = 0.5: 50% blend (twilight).
       gl_FragColor = mix(nightColor, dayColor, intensity);
     }
   `
 });
 
-
-// ******  MOONS  ******
-// Earth
+// ****** MOONS ******
 const earthMoon = [{
-  size: 1.6,
-  texture: earthMoonTexture,
-  bump: earthMoonBump,
-  orbitSpeed: 0.001 * settings.accelerationOrbit,
-  orbitRadius: 10
-}]
+  size: 1.6, // // radius of the Moon’s spherical geometry
+  texture: earthMoonTexture, // Specifies the texture map for the Moon’s surface.
+  bump: earthMoonBump, // Specifies the bump map for the Moon’s surface to add depth and detail.
+  orbitSpeed: 0.001 * settings.accelerationOrbit, // Defines the Moon’s orbital speed around Earth, scaled by a user-controlled factor.
+  orbitRadius: 10 // Specifies the distance from Earth’s center to the Moon’s orbital path.
+}];
 
-// Mars' moons with path to 3D models (phobos & deimos)
 const marsMoons = [
   {
     modelPath: '/images/mars/phobos.glb',
-    scale: 0.1,
-    orbitRadius: 5,
+    // Defines the uniform scaling factor for the Phobos model.
+    scale: 0.1, // 0.1 means the model is scaled to 10% of its original size
+    orbitRadius: 5, // Specifies the distance from Mars’ center to Phobos’ orbital path, in simulation units.
     orbitSpeed: 0.002 * settings.accelerationOrbit,
-    position: 100,
-    mesh: null
+    position: 100, // Specifies the initial x-coordinate for Phobos’ placement, likely used in loadObject
+    mesh: null // A placeholder for the loaded GLTF model’s mesh, updated after loading
   },
   {
     modelPath: '/images/mars/deimos.glb',
@@ -470,7 +1094,6 @@ const marsMoons = [
   }
 ];
 
-// Jupiter
 const jupiterMoons = [
   {
     size: 1.6,
@@ -498,149 +1121,174 @@ const jupiterMoons = [
   }
 ];
 
-// ******  PLANET CREATIONS  ******
-const mercury = new createPlanet('Mercury', 2.4, 40, 0, mercuryTexture, mercuryBump);
-const venus = new createPlanet('Venus', 6.1, 65, 3, venusTexture, venusBump, null, venusAtmosphere);
-const earth = new createPlanet('Earth', 6.4, 90, 23, earthMaterial, null, null, earthAtmosphere, earthMoon);
-const mars = new createPlanet('Mars', 3.4, 115, 25, marsTexture, marsBump)
-// Load Mars moons
+// ****** PLANET CREATIONS ******
+// Instantiates various planets as objects in the simulation, each with a 3D mesh, material, and orbital properties
+const mercury = new createPlanet('Mercury', 2.4, 34.83, 33.39, 7.16, 0, 0, mercuryTexture, mercuryBump);
+const venus = new createPlanet('Venus', 6.1, 65.07, 65.07, 0.44, 0, 3, venusTexture, venusBump, null, venusAtmosphere);
+const earth = new createPlanet('Earth', 6.4, 90, 89.987, 1.5, 0, 23, earthMaterial, null, null, earthAtmosphere, earthMoon);
+const mars = new createPlanet('Mars', 3.4, 136.8, 136.18, 12.77, 0, 25, marsTexture, marsBump);
+
+// Loads and integrates the 3D models for Mars’ moons (Phobos and Deimos) into the simulation, 
+// assigning them to Mars’ coordinate system (planetSystem) and configuring them to cast and receive shadows for enhanced realism.
+// Iterates over each moon object in the marsMoons array
 marsMoons.forEach(moon => {
+  // Loads the moon’s GLTF model using the loadObject function and executes a callback when the model is loaded.
   loadObject(moon.modelPath, moon.position, moon.scale, function(loadedModel) {
+    // Assigns the loaded GLTF model to the moon’s mesh property
     moon.mesh = loadedModel;
+    // Adds the moon’s model to Mars’ planetSystem group, parenting it to Mars’ coordinate system.
     mars.planetSystem.add(moon.mesh);
+    // Iterates through the loaded model’s hierarchy to configure properties of all meshes.
     moon.mesh.traverse(function (child) {
+      // Checks if the current child is a renderable mesh, filtering out non-mesh objects (e.g., groups, lights).
       if (child.isMesh) {
+        // Enables the mesh to cast shadows onto other objects.
         child.castShadow = true;
+        // Enables the mesh to receive shadows cast by other objects.
         child.receiveShadow = true;
       }
     });
   });
 });
 
-const jupiter = new createPlanet('Jupiter', 69/4, 200, 3, jupiterTexture, null, null, null, jupiterMoons);
-const saturn = new createPlanet('Saturn', 58/4, 270, 26, saturnTexture, null, {
-  innerRadius: 18, 
-  outerRadius: 29, 
+const jupiter = new createPlanet('Jupiter', 69/4, 200, 199.76, 22.88, 0, 3, jupiterTexture, null, null, null, jupiterMoons);
+const saturn = new createPlanet('Saturn', 58/4, 270, 269.57, 48.75, 0, 26, saturnTexture, null, {
+  innerRadius: 18,
+  outerRadius: 29,
   texture: satRingTexture
 });
-const uranus = new createPlanet('Uranus', 25/4, 320, 82, uranusTexture, null, {
-  innerRadius: 6, 
-  outerRadius: 8, 
+const uranus = new createPlanet('Uranus', 25/4, 320, 319.67, 79, 0, 82, uranusTexture, null, {
+  innerRadius: 6,
+  outerRadius: 8,
   texture: uraRingTexture
 });
-const neptune = new createPlanet('Neptune', 24/4, 340, 28, neptuneTexture);
-const pluto = new createPlanet('Pluto', 1, 350, 57, plutoTexture)
+const neptune = new createPlanet('Neptune', 24/4, 340, 339.98, 30.59, 0, 28, neptuneTexture);
+const pluto = new createPlanet('Pluto', 1, 350, 338.88, 88.3, 0, 57, plutoTexture);
 
-  // ******  PLANETS DATA  ******
-  const planetData = {
-    'Mercury': {
-        radius: '2,439.7 km',
-        tilt: '0.034°',
-        rotation: '58.6 Earth days',
-        orbit: '88 Earth days',
-        distance: '57.9 million km',
-        moons: '0',
-        info: 'The smallest planet in our solar system and nearest to the Sun.'
-    },
-    'Venus': {
-        radius: '6,051.8 km',
-        tilt: '177.4°',
-        rotation: '243 Earth days',
-        orbit: '225 Earth days',
-        distance: '108.2 million km',
-        moons: '0',
-        info: 'Second planet from the Sun, known for its extreme temperatures and thick atmosphere.'
-    },
-    'Earth': {
-        radius: '6,371 km',
-        tilt: '23.5°',
-        rotation: '24 hours',
-        orbit: '365 days',
-        distance: '150 million km',
-        moons: '1 (Moon)',
-        info: 'Third planet from the Sun and the only known planet to harbor life.'
-    },
-    'Mars': {
-        radius: '3,389.5 km',
-        tilt: '25.19°',
-        rotation: '1.03 Earth days',
-        orbit: '687 Earth days',
-        distance: '227.9 million km',
-        moons: '2 (Phobos and Deimos)',
-        info: 'Known as the Red Planet, famous for its reddish appearance and potential for human colonization.'
-    },
-    'Jupiter': {
-        radius: '69,911 km',
-        tilt: '3.13°',
-        rotation: '9.9 hours',
-        orbit: '12 Earth years',
-        distance: '778.5 million km',
-        moons: '95 known moons (Ganymede, Callisto, Europa, Io are the 4 largest)',
-        info: 'The largest planet in our solar system, known for its Great Red Spot.'
-    },
-    'Saturn': {
-        radius: '58,232 km',
-        tilt: '26.73°',
-        rotation: '10.7 hours',
-        orbit: '29.5 Earth years',
-        distance: '1.4 billion km',
-        moons: '146 known moons',
-        info: 'Distinguished by its extensive ring system, the second-largest planet in our solar system.'
-    },
-    'Uranus': {
-        radius: '25,362 km',
-        tilt: '97.77°',
-        rotation: '17.2 hours',
-        orbit: '84 Earth years',
-        distance: '2.9 billion km',
-        moons: '27 known moons',
-        info: 'Known for its unique sideways rotation and pale blue color.'
-    },
-    'Neptune': {
-        radius: '24,622 km',
-        tilt: '28.32°',
-        rotation: '16.1 hours',
-        orbit: '165 Earth years',
-        distance: '4.5 billion km',
-        moons: '14 known moons',
-        info: 'The most distant planet from the Sun in our solar system, known for its deep blue color.'
-    },
-    'Pluto': {
-        radius: '1,188.3 km',
-        tilt: '122.53°',
-        rotation: '6.4 Earth days',
-        orbit: '248 Earth years',
-        distance: '5.9 billion km',
-        moons: '5 (Charon, Styx, Nix, Kerberos, Hydra)',
-        info: 'Originally classified as the ninth planet, Pluto is now considered a dwarf planet.'
-    }
+// ****** PLANETS DATA ******
+// Define planetData
+const planetData = {
+  'Mercury': {
+    radius: '2,439.7 km',
+    tilt: '0.034°',
+    rotation: '58.6 Earth days',
+    orbit: '88 Earth days',
+    distance: '57.9 million km',
+    moons: '0',
+    info: 'The smallest planet in our solar system and nearest to the Sun.'
+  },
+  'Venus': {
+    radius: '6,051.8 km',
+    tilt: '177.4°',
+    rotation: '243 Earth days',
+    orbit: '225 Earth days',
+    distance: '108.2 million km',
+    moons: '0',
+    info: 'Second planet from the Sun, known for its extreme temperatures and thick atmosphere.'
+  },
+  'Earth': {
+    radius: '6,371 km',
+    tilt: '23.5°',
+    rotation: '24 hours',
+    orbit: '365 days',
+    distance: '150 million km',
+    moons: '1 (Moon)',
+    info: 'Third planet from the Sun and the only known planet to harbor life.'
+  },
+  'Mars': {
+    radius: '3,389.5 km',
+    tilt: '25.19°',
+    rotation: '1.03 Earth days',
+    orbit: '687 Earth days',
+    distance: '227.9 million km',
+    moons: '2 (Phobos and Deimos)',
+    info: 'Known as the Red Planet, famous for its reddish appearance and potential for human colonization.'
+  },
+  'Jupiter': {
+    radius: '69,911 km',
+    tilt: '3.13°',
+    rotation: '9.9 hours',
+    orbit: '12 Earth years',
+    distance: '778.5 million km',
+    moons: '95 known moons (Ganymede, Callisto, Europa, Io are the 4 largest)',
+    info: 'The largest planet in our solar system, known for its Great Red Spot.'
+  },
+  'Saturn': {
+    radius: '58,232 km',
+    tilt: '26.73°',
+    rotation: '10.7 hours',
+    orbit: '29.5 Earth years',
+    distance: '1.4 billion km',
+    moons: '146 known moons',
+    info: 'Distinguished by its extensive ring system, the second-largest planet in our solar system.'
+  },
+  'Uranus': {
+    radius: '25,362 km',
+    tilt: '97.77°',
+    rotation: '17.2 hours',
+    orbit: '84 Earth years',
+    distance: '2.9 billion km',
+    moons: '27 known moons',
+    info: 'Known for its unique sideways rotation and pale blue color.'
+  },
+  'Neptune': {
+    radius: '24,622 km',
+    tilt: '28.32°',
+    rotation: '16.1 hours',
+    orbit: '165 Earth years',
+    distance: '4.5 billion km',
+    moons: '14 known moons',
+    info: 'The most distant planet from the Sun in our solar system, known for its deep blue color.'
+  },
+  'Pluto': {
+    radius: '1,188.3 km',
+    tilt: '122.53°',
+    rotation: '6.4 Earth days',
+    orbit: '248 Earth years',
+    distance: '5.9 billion km',
+    moons: '5 (Charon, Styx, Nix, Kerberos, Hydra)',
+    info: 'Originally classified as the ninth planet, Pluto is now considered a dwarf planet.'
+  }
 };
 
-
 // Array of planets and atmospheres for raycasting
+// Defines an array of 3D objects (planet meshes and atmospheres) that can be detected by raycasting, 
+// enabling user interactions like clicking planets to show information
 const raycastTargets = [
-  mercury.planet, venus.planet, venus.Atmosphere, earth.planet, earth.Atmosphere, 
+  mercury.planet, venus.planet, venus.Atmosphere, earth.planet, earth.Atmosphere,
   mars.planet, jupiter.planet, saturn.planet, uranus.planet, neptune.planet, pluto.planet
 ];
 
-// ******  SHADOWS  ******
+// ****** SHADOWS ******
+// Enables shadow mapping in the WebGL renderer, allowing objects to cast and receive shadows.
 renderer.shadowMap.enabled = true;
+// Configures the pointLight (the sun) to cast shadows.
 pointLight.castShadow = true;
 
-//properties for the point light
+// Sets the resolution of the shadow map for pointLight.
+// Provides crisp shadows for objects like earth.planet, marsMoons meshes, or jupiter.planet, visible
 pointLight.shadow.mapSize.width = 1024;
 pointLight.shadow.mapSize.height = 1024;
-pointLight.shadow.camera.near = 10;
-pointLight.shadow.camera.far = 20;
 
-//casting and receiving shadows
+// Configures the shadow camera’s near and far clipping planes for pointLight.
+// A PointLight uses a perspective shadow camera (or multiple for omnidirectional shadows) to render the shadow map.
+// near = 10: Objects closer than 10 units to the light (sun at (0, 0, 0)) are ignored for shadows.
+// far = 20: Objects farther than 20 units don’t cast shadows.
+pointLight.shadow.camera.near = 10; //10;
+pointLight.shadow.camera.far = 100; // 20;
+
+// Allows the Earth’s planet mesh to cast shadows onto other objects.
 earth.planet.castShadow = true;
+// Allows the Earth’s planet mesh to receive shadows cast by other objects.
 earth.planet.receiveShadow = true;
+// Allows the Earth’s atmosphere mesh to cast shadows.
 earth.Atmosphere.castShadow = true;
+// Allows the Earth’s atmosphere to receive shadows.
 earth.Atmosphere.receiveShadow = true;
+// Iterates over the Earth’s moons (from earthMoon) to configure their shadow properties.
 earth.moons.forEach(moon => {
-moon.mesh.castShadow = true;
-moon.mesh.receiveShadow = true;
+  moon.mesh.castShadow = true;
+  moon.mesh.receiveShadow = true;
 });
 mercury.planet.castShadow = true;
 mercury.planet.receiveShadow = true;
@@ -654,7 +1302,7 @@ jupiter.planet.receiveShadow = true;
 jupiter.moons.forEach(moon => {
   moon.mesh.castShadow = true;
   moon.mesh.receiveShadow = true;
-  });
+});
 saturn.planet.castShadow = true;
 saturn.planet.receiveShadow = true;
 saturn.Ring.receiveShadow = true;
@@ -662,179 +1310,174 @@ uranus.planet.receiveShadow = true;
 neptune.planet.receiveShadow = true;
 pluto.planet.receiveShadow = true;
 
+mercury.orbitSpeed = 0.004;
+venus.orbitSpeed = 0.0006;
+earth.orbitSpeed = 0.001;
+mars.orbitSpeed = 0.0007;
+jupiter.orbitSpeed = 0.0003;
+saturn.orbitSpeed = 0.0002;
+uranus.orbitSpeed = 0.0001;
+neptune.orbitSpeed = 0.00008;
+pluto.orbitSpeed = 0.00006;
 
+function animate() {
+  // Update Sun and Corona Materials
+  sunMaterial.uniforms.time.value += 0.015;
+  coronaMaterial.uniforms.time.value += 0.015;
 
+  // Rotate Sun
+  sun.rotateY(0.004 * settings.acceleration);
 
-function animate(){
+  // Update planet orbits
+  const planets = [mercury, venus, earth, mars, jupiter, saturn, uranus, neptune, pluto];
+  planets.forEach(planet => {
+    // Increment orbit angle
+    planet.orbitAngle += planet.orbitSpeed * settings.accelerationOrbit;
+    // Normalize t to [0, 1] by wrapping angle to [0, 2π]
+    const t = (planet.orbitAngle % (2 * Math.PI)) / (2 * Math.PI);
+    // Get point on the elliptical orbit
+    const point = planet.orbitPath.getPoint(t);
+    // Set planetSystem position (y = 0 for orbital plane)
+    planet.planetSystem.position.set(point.x, 0, point.y);
 
-  //rotating planets around the sun and itself
-  sun.rotateY(0.001 * settings.acceleration);
-  mercury.planet.rotateY(0.001 * settings.acceleration);
-  mercury.planet3d.rotateY(0.004 * settings.accelerationOrbit);
-  venus.planet.rotateY(0.0005 * settings.acceleration)
-  venus.Atmosphere.rotateY(0.0005 * settings.acceleration);
-  venus.planet3d.rotateY(0.0006 * settings.accelerationOrbit);
-  earth.planet.rotateY(0.005 * settings.acceleration);
-  earth.Atmosphere.rotateY(0.001 * settings.acceleration);
-  earth.planet3d.rotateY(0.001 * settings.accelerationOrbit);
-  mars.planet.rotateY(0.01 * settings.acceleration);
-  mars.planet3d.rotateY(0.0007 * settings.accelerationOrbit);
-  jupiter.planet.rotateY(0.005 * settings.acceleration);
-  jupiter.planet3d.rotateY(0.0003 * settings.accelerationOrbit);
-  saturn.planet.rotateY(0.01 * settings.acceleration);
-  saturn.planet3d.rotateY(0.0002 * settings.accelerationOrbit);
-  uranus.planet.rotateY(0.005 * settings.acceleration);
-  uranus.planet3d.rotateY(0.0001 * settings.accelerationOrbit);
-  neptune.planet.rotateY(0.005 * settings.acceleration);
-  neptune.planet3d.rotateY(0.00008 * settings.accelerationOrbit);
-  pluto.planet.rotateY(0.001 * settings.acceleration)
-  pluto.planet3d.rotateY(0.00006 * settings.accelerationOrbit)
-
-// Animate Earth's moon
-if (earth.moons) {
-  earth.moons.forEach(moon => {
-    const time = performance.now();
-    const tiltAngle = 5 * Math.PI / 180;
-
-    const moonX = earth.planet.position.x + moon.orbitRadius * Math.cos(time * moon.orbitSpeed);
-    const moonY = moon.orbitRadius * Math.sin(time * moon.orbitSpeed) * Math.sin(tiltAngle);
-    const moonZ = earth.planet.position.z + moon.orbitRadius * Math.sin(time * moon.orbitSpeed) * Math.cos(tiltAngle);
-
-    moon.mesh.position.set(moonX, moonY, moonZ);
-    moon.mesh.rotateY(0.01);
+    // Rotate planet on its axis
+    planet.planet.rotateY(0.005 * settings.acceleration);
+    if (planet.Atmosphere) {
+      planet.Atmosphere.rotateY(0.001 * settings.acceleration);
+    }
   });
-}
-// Animate Mars' moons
-if (marsMoons){
-marsMoons.forEach(moon => {
-  if (moon.mesh) {
-    const time = performance.now();
 
-    const moonX = mars.planet.position.x + moon.orbitRadius * Math.cos(time * moon.orbitSpeed);
-    const moonY = moon.orbitRadius * Math.sin(time * moon.orbitSpeed);
-    const moonZ = mars.planet.position.z + moon.orbitRadius * Math.sin(time * moon.orbitSpeed);
-
-    moon.mesh.position.set(moonX, moonY, moonZ);
-    moon.mesh.rotateY(0.001);
+  // Update Earth's Moon
+  if (earth.moons) {
+    earth.moons.forEach(moon => {
+      const time = performance.now();
+      const tiltAngle = 5 * Math.PI / 180;
+      const moonX = moon.orbitRadius * Math.cos(time * moon.orbitSpeed);
+      const moonY = moon.orbitRadius * Math.sin(time * moon.orbitSpeed) * Math.sin(tiltAngle);
+      const moonZ = moon.orbitRadius * Math.sin(time * moon.orbitSpeed) * Math.cos(tiltAngle);
+      moon.mesh.position.set(moonX, moonY, moonZ);
+      moon.mesh.rotateY(0.01);
+    });
   }
-});
-}
 
-// Animate Jupiter's moons
-if (jupiter.moons) {
-  jupiter.moons.forEach(moon => {
-    const time = performance.now();
-    const moonX = jupiter.planet.position.x + moon.orbitRadius * Math.cos(time * moon.orbitSpeed);
-    const moonY = moon.orbitRadius * Math.sin(time * moon.orbitSpeed);
-    const moonZ = jupiter.planet.position.z + moon.orbitRadius * Math.sin(time * moon.orbitSpeed);
+  // Update Mars' Moons
+  if (marsMoons) {
+    marsMoons.forEach(moon => {
+      if (moon.mesh) {
+        const time = performance.now();
+        const moonX = moon.orbitRadius * Math.cos(time * moon.orbitSpeed);
+        const moonY = moon.orbitRadius * Math.sin(time * moon.orbitSpeed);
+        const moonZ = moon.orbitRadius * Math.sin(time * moon.orbitSpeed);
+        moon.mesh.position.set(moonX, moonY, moonZ);
+        moon.mesh.rotateY(0.001);
+      }
+    });
+  }
 
-    moon.mesh.position.set(moonX, moonY, moonZ);
-    moon.mesh.rotateY(0.01);
+  // Update Jupiter's Moons
+  if (jupiter.moons) {
+    jupiter.moons.forEach(moon => {
+      const time = performance.now();
+      const moonX = moon.orbitRadius * Math.cos(time * moon.orbitSpeed);
+      const moonY = moon.orbitRadius * Math.sin(time * moon.orbitSpeed);
+      const moonZ = moon.orbitRadius * Math.sin(time * moon.orbitSpeed);
+      moon.mesh.position.set(moonX, moonY, moonZ);
+      moon.mesh.rotateY(0.01);
+    });
+  }
+
+  // Update Asteroids
+  asteroids.forEach(asteroid => {
+    asteroid.rotation.y += 0.0001;
+    asteroid.position.x = asteroid.position.x * Math.cos(0.0001 * settings.accelerationOrbit) + asteroid.position.z * Math.sin(0.0001 * settings.accelerationOrbit);
+    asteroid.position.z = asteroid.position.z * Math.cos(0.0001 * settings.accelerationOrbit) - asteroid.position.x * Math.sin(0.0001 * settings.accelerationOrbit);
   });
-}
 
-// Rotate asteroids
-asteroids.forEach(asteroid => {
-  asteroid.rotation.y += 0.0001;
-  asteroid.position.x = asteroid.position.x * Math.cos(0.0001 * settings.accelerationOrbit) + asteroid.position.z * Math.sin(0.0001 * settings.accelerationOrbit);
-  asteroid.position.z = asteroid.position.z * Math.cos(0.0001 * settings.accelerationOrbit) - asteroid.position.x * Math.sin(0.0001 * settings.accelerationOrbit);
-});
-
-// ****** OUTLINES ON PLANETS ******
-raycaster.setFromCamera(mouse, camera);
-
-// Check for intersections
-var intersects = raycaster.intersectObjects(raycastTargets);
-
-// Reset all outlines
-outlinePass.selectedObjects = [];
-
-if (intersects.length > 0) {
-  const intersectedObject = intersects[0].object;
-
-  // If the intersected object is an atmosphere, find the corresponding planet
-  if (intersectedObject === earth.Atmosphere) {
-    outlinePass.selectedObjects = [earth.planet];
-  } else if (intersectedObject === venus.Atmosphere) {
-    outlinePass.selectedObjects = [venus.planet];
-  } else {
-    // For other planets, outline the intersected object itself
-    outlinePass.selectedObjects = [intersectedObject];
+  // Raycasting for mouse interactions
+  raycaster.setFromCamera(mouse, camera);
+  var intersects = raycaster.intersectObjects(raycastTargets);
+  outlinePass.selectedObjects = [];
+  if (intersects.length > 0) {
+    const intersectedObject = intersects[0].object;
+    if (intersectedObject === earth.Atmosphere) {
+      outlinePass.selectedObjects = [earth.planet];
+    } else if (intersectedObject === venus.Atmosphere) {
+      outlinePass.selectedObjects = [venus.planet];
+    } else {
+      outlinePass.selectedObjects = [intersectedObject];
+    }
   }
-}
-// ******  ZOOM IN/OUT  ******
-if (isMovingTowardsPlanet) {
-  // Smoothly move the camera towards the target position
-  camera.position.lerp(targetCameraPosition, 0.03);
 
-  // Check if the camera is close to the target position
-  if (camera.position.distanceTo(targetCameraPosition) < 1) {
+  // Camera movement for zooming
+  if (isMovingTowardsPlanet) {
+    camera.position.lerp(targetCameraPosition, 0.03);
+    if (camera.position.distanceTo(targetCameraPosition) < 1) {
       isMovingTowardsPlanet = false;
       showPlanetInfo(selectedPlanet.name);
-
-  }
-} else if (isZoomingOut) {
-  camera.position.lerp(zoomOutTargetPosition, 0.05);
-
-  if (camera.position.distanceTo(zoomOutTargetPosition) < 1) {
+    }
+  } else if (isZoomingOut) {
+    camera.position.lerp(zoomOutTargetPosition, 0.05);
+    if (camera.position.distanceTo(zoomOutTargetPosition) < 1) {
       isZoomingOut = false;
+    }
   }
-}
 
+  // Update controls and render
   controls.update();
   requestAnimationFrame(animate);
   composer.render();
 }
+
+// Calls the loadAsteroids function to load and place asteroids from a GLTF file (asteroidPack.glb) into the scene, 
+// creating two asteroid belts with different counts and ranges.
+// path: Path to the GLTF file (/asteroids/asteroidPack.glb), containing 3D asteroid models.
+// count: Number of asteroids (1000 and 3000).
+// minDistance, maxDistance: Minimum and maximum distances from the origin (sun at (0, 0, 0)) to place asteroids, forming ring-shaped belts.
 loadAsteroids('/asteroids/asteroidPack.glb', 1000, 130, 160);
 loadAsteroids('/asteroids/asteroidPack.glb', 3000, 352, 370);
+
+// Calls the animate function to start the simulation’s animation loop.
 animate();
 
+// Attaches the onMouseMove function to handle mouse movement events in the browser window.
 window.addEventListener('mousemove', onMouseMove, false);
+// Attaches the onDocumentMouseDown function to handle mouse click events.
 window.addEventListener('mousedown', onDocumentMouseDown, false);
-window.addEventListener('resize', function(){
+// Handles window resize events to update the camera, renderer, and composer to match the new window size.
+window.addEventListener('resize', function() {
   camera.aspect = window.innerWidth/window.innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth,window.innerHeight);
-  composer.setSize(window.innerWidth,window.innerHeight);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  composer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// Tốc độ di chuyển camera
-
-// Tốc độ xoay camera (radian mỗi lần nhấn)
 const rotateSpeed = 0.05;
+let radius = camera.position.length();
+let theta = Math.atan2(camera.position.x, camera.position.z);
+let phi = Math.acos(camera.position.y / radius);
 
-// Biến để theo dõi tọa độ cầu của camera
-let radius = camera.position.length(); // Khoảng cách ban đầu từ camera đến Mặt Trời
-let theta = Math.atan2(camera.position.x, camera.position.z); // Góc ngang
-let phi = Math.acos(camera.position.y / radius); // Góc dọc
-
-// Thêm sự kiện bàn phím cho W, S, A, D
 window.addEventListener('keydown', (event) => {
-  // Chỉ cho phép xoay khi không zoom vào hành tinh hoặc zoom ra
   if (!isMovingTowardsPlanet && !isZoomingOut) {
     switch (event.key.toLowerCase()) {
-      case 'w': // Xoay lên trên
-        phi = Math.max(0.1, phi - rotateSpeed); // Giới hạn để không lật qua đỉnh
+      case 'w':
+        phi = Math.max(0.1, phi - rotateSpeed);
         break;
-      case 's': // Xoay xuống dưới
-        phi = Math.min(Math.PI - 0.1, phi + rotateSpeed); // Giới hạn để không lật qua đáy
+      case 's':
+        phi = Math.min(Math.PI - 0.1, phi + rotateSpeed);
         break;
-      case 'a': // Xoay sang trái
+      case 'a':
         theta += rotateSpeed;
         break;
-      case 'd': // Xoay sang phải
+      case 'd':
         theta -= rotateSpeed;
         break;
     }
 
-    // Cập nhật vị trí camera theo tọa độ cầu
     camera.position.x = radius * Math.sin(phi) * Math.sin(theta);
     camera.position.y = radius * Math.cos(phi);
     camera.position.z = radius * Math.sin(phi) * Math.cos(theta);
-
-    // Đảm bảo camera hướng về Mặt Trời
     camera.lookAt(0, 0, 0);
-    controls.target.set(0, 0, 0); // Đặt target tại Mặt Trời
-    controls.update(); // Cập nhật OrbitControls
+    controls.target.set(0, 0, 0);
+    controls.update();
   }
 });
