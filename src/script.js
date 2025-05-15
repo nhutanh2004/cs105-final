@@ -301,7 +301,7 @@ function identifyPlanet(clickedObject) {
     offset = 20;
     return neptune;
   } else if (clickedObject.material === pluto.planet.material) {
-    offset = 10;
+    offset = 20;
     return pluto;
   }
   return null;
@@ -623,12 +623,10 @@ scene.add(pointLight);
 
 // ****** PLANET CREATION FUNCTION ******
 // Defines the function with parameters to configure the planet.
-/*
-function createPlanet(planetName, size, position_a, position_b, orbitcenter_x, orbitcenter_y, tilt, texture, bump, ring, atmosphere, moons) {
+function createPlanet(planetName, size, position_a, position_b, orbitcenter_x, orbitcenter_y, tilt, texture, bump, ring, atmosphere, moons, inclination = 0, omega = 0) {
   // Declares a variable to store the planet’s material.
   // Will be assigned a THREE.MeshPhongMaterial or a provided material based on conditions.
   let material;
-
   // Uses a pre-defined material if provided.
   if (texture instanceof THREE.Material) {
     material = texture;
@@ -636,19 +634,18 @@ function createPlanet(planetName, size, position_a, position_b, orbitcenter_x, o
   // Creates a material with a texture and bump map if a bump map is provided.
   else if (bump) {
     material = new THREE.MeshPhongMaterial({
-    // The color texture (e.g., 'earth.jpg'), loaded via loadTexture.load
-    map: loadTexture.load(texture),
-    // The bump map for surface detail, adding shading to simulate height without extra geometry.
-    bumpMap: loadTexture.load(bump),
-    // Scales the bump effect’s intensity (0.7 is moderate, enhancing terrain like mountains).
-    bumpScale: 0.7
-    });
-  } 
-  // Creates a material with only a color texture if no bump map is provided.
-  else {
+      // The color texture (e.g., 'earth.jpg'), loaded via loadTexture.load
+      map: loadTexture.load(texture),
+      // The bump map for surface detail, adding shading to simulate height without extra geometry.
+      bumpMap: loadTexture.load(bump),
+      // Scales the bump effect’s intensity (0.7 is moderate, enhancing terrain like mountains).
+      bumpScale: 0.7
+    });} 
+    // Creates a material with only a color texture if no bump map is provided.
+    else {
     material = new THREE.MeshPhongMaterial({
-    // The color texture (e.g., 'earth.jpg'), loaded via loadTexture.load
-    map: loadTexture.load(texture)
+      // The color texture (e.g., 'earth.jpg'), loaded via loadTexture.load
+      map: loadTexture.load(texture)
     });
   }
   // Stores the planet’s name for the return object.
@@ -661,11 +658,6 @@ function createPlanet(planetName, size, position_a, position_b, orbitcenter_x, o
   const geometry = new THREE.SphereGeometry(size, 32, 20);
   // Creates a mesh for the planet’s surface.
   const planet = new THREE.Mesh(geometry, material);
-  // Creates a container for the planet’s orbital rotation.
-  // THREE.Object3D is a generic 3D object used as a pivot point.
-  // Will hold the planetSystem and rotate around the sun in animate
-  // Represents the planet’s orbital path around the sun at (0, 0, 0).
-  const planet3d = new THREE.Object3D;
   // Creates a group to hold the planet, its orbit, rings, and moons.
   // THREE.Group organizes related objects, allowing them to be transformed together.
   // Contains the planet mesh, orbit path, and optional rings/moons.
@@ -677,23 +669,18 @@ function createPlanet(planetName, size, position_a, position_b, orbitcenter_x, o
   let Atmosphere;
   let Ring;
 
-  // Positions the planet at its orbital distance from the sun.
-  planet.position.x = position_a;
-  planet3d.position.set(orbitcenter_x, 0, orbitcenter_y)
-  // Applies the planet’s axial tilt.
+  // Apply planet's axial tilt
   // Simulates the planet’s axial tilt, affecting its appearance and ring orientation.
   planet.rotation.z = tilt * Math.PI / 180;
 
-  // Defines the planet’s orbital path as an ellipse.
+  // Define the elliptical orbit with omega (argument of perihelion)
   const orbitPath = new THREE.EllipseCurve(
-    orbitcenter_x, orbitcenter_y,
-    // 0, 0, // Center (sun’s position in the orbital plane).
-    position_a, position_b, // X and Y radii
-    0, 2 * Math.PI, // Start and end angles (full circle).
-    false, // Counter-clockwise rotation.
-    0 // Rotation offset.
+    orbitcenter_x, orbitcenter_y, // Center of the ellipse
+    position_a, position_b,       // X and Y radii
+    0, 2 * Math.PI,              // Full circle
+    false,                       // Counter-clockwise
+    omega * Math.PI / 180        // Rotate ellipse by omega (in radians)
   );
-  
 
   // Generates 100 points along the orbit curve.
   // getPoints(100) samples the ellipse at 100 evenly spaced points, creating a smooth path.
@@ -711,16 +698,25 @@ function createPlanet(planetName, size, position_a, position_b, orbitcenter_x, o
   // THREE.LineLoop connects the points into a closed loop (circle).
   // Combines orbitGeometry (points) and orbitMaterial (faint white).
   const orbit = new THREE.LineLoop(orbitGeometry, orbitMaterial);
-  // Rotates the orbit to lie in the orbital plane.
-  // Rotates the orbit 90° around the x-axis, aligning it with the xy-plane (since EllipseCurve is in the xy-plane by default).
-  orbit.rotation.x = Math.PI / 2;
-  // Adds the orbit to the planet system.
-  // planetSystem.add(orbit);
+  
+  // Tilts the orbit plane by rotating the orbit line around the x-axis.
+  orbit.rotation.x = Math.PI / 2 + inclination * Math.PI / 180; // Default xy-plane (90°) + inclination
+  // Adds the orbit line to the Three.js scene.
   scene.add(orbit);
-  // Stores the orbit in a global orbits array.
+  // Adds the orbit to a global orbits array.
   orbits.push(orbit);
 
-  // Creates a ring system for planets like Saturn.
+  // Set initial position based on orbit path at angle 0
+  // Purpose: Gets the initial position of the planet on its orbit at t = 0.
+  const initialPoint = orbitPath.getPoint(0);
+  // Sets the initial position of the planetSystem group.
+  // Use initialPoint.y for z to align with orbit
+  planetSystem.position.set(initialPoint.x, initialPoint.y, initialPoint.y); 
+
+  // Rotates the planetSystem group to align with the tilted orbital plane.
+  planetSystem.rotation.x = inclination * Math.PI / 180;
+
+  // Checks if a ring system is provided (e.g., for Saturn).
   if (ring) {
     // THREE.RingGeometry creates a flat ring with:
     // innerRadius: Inner edge
@@ -737,9 +733,6 @@ function createPlanet(planetName, size, position_a, position_b, orbitcenter_x, o
     // Creates and adds the ring to planetSystem.
     Ring = new THREE.Mesh(RingGeo, RingMat);
     planetSystem.add(Ring);
-
-    // Positions the ring at the planet’s orbital distance.
-    Ring.position.x = position_a;
     // Rotates 90° around x-axis to lie flat.
     Ring.rotation.x = -0.5 * Math.PI;
     // Applies the planet’s tilt around y-axis for correct orientation
@@ -756,10 +749,9 @@ function createPlanet(planetName, size, position_a, position_b, orbitcenter_x, o
       map: loadTexture.load(atmosphere),
       transparent: true,
       opacity: 0.4,
-      depthTest: true, // Ensures correct depth sorting.
-      depthWrite: false // Prevents the atmosphere from blocking the planet.
+      depthTest: true,
+      depthWrite: false
     });
-
     // Creates the atmosphere mesh.
     Atmosphere = new THREE.Mesh(atmosphereGeom, atmosphereMaterial);
     // Rotates it ~23.5° (0.41 radians) around z-axis, possibly to align with the planet’s tilt or texture.
@@ -799,123 +791,12 @@ function createPlanet(planetName, size, position_a, position_b, orbitcenter_x, o
       moon.mesh = moonMesh;
     });
   }
-
-  // Positions planetSystem (planet, orbit, rings, moons) under planet3d, which rotates around the sun.
-  planet3d.add(planetSystem);
-  // Adds the entire planet hierarchy to the scene.
-  scene.add(planet3d);
-
-  const orbitAngle = 0;
-  // Returns an object with references to the planet’s components.
-  return { name, planet, planet3d, Atmosphere, moons, planetSystem, Ring, orbitPath, orbitcenter_x, orbitcenter_y, orbitAngle, orbitSpeed: 0.001};
-}
-*/
-
-function createPlanet(planetName, size, position_a, position_b, orbitcenter_x, orbitcenter_y, tilt, texture, bump, ring, atmosphere, moons) {
-  let material;
-  if (texture instanceof THREE.Material) {
-    material = texture;
-  } else if (bump) {
-    material = new THREE.MeshPhongMaterial({
-      map: loadTexture.load(texture),
-      bumpMap: loadTexture.load(bump),
-      bumpScale: 0.7
-    });
-  } else {
-    material = new THREE.MeshPhongMaterial({
-      map: loadTexture.load(texture)
-    });
-  }
-  const name = planetName;
-  const geometry = new THREE.SphereGeometry(size, 32, 20);
-  const planet = new THREE.Mesh(geometry, material);
-  const planetSystem = new THREE.Group();
-  planetSystem.add(planet);
-  let Atmosphere;
-  let Ring;
-
-  // Apply tilt to the planet
-  planet.rotation.z = tilt * Math.PI / 180;
-
-  // Define the elliptical orbit
-  const orbitPath = new THREE.EllipseCurve(
-    orbitcenter_x, orbitcenter_y, // Center of the ellipse
-    position_a, position_b,       // X and Y radii
-    0, 2 * Math.PI,              // Full circle
-    false,                       // Counter-clockwise
-    0                            // No rotation offset
-  );
-
-  // Create orbit visualization
-  const pathPoints = orbitPath.getPoints(100);
-  const orbitGeometry = new THREE.BufferGeometry().setFromPoints(pathPoints);
-  const orbitMaterial = new THREE.LineBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.03 });
-  const orbit = new THREE.LineLoop(orbitGeometry, orbitMaterial);
-  orbit.rotation.x = Math.PI / 2; // Align with xy-plane
-  scene.add(orbit);
-  orbits.push(orbit);
-
-  // Set initial position based on orbit path at angle 0
-  const initialPoint = orbitPath.getPoint(0); // t = 0 for initial position
-  planetSystem.position.set(initialPoint.x, 0, initialPoint.y);
-
-  // Handle rings
-  if (ring) {
-    const RingGeo = new THREE.RingGeometry(ring.innerRadius, ring.outerRadius, 30);
-    const RingMat = new THREE.MeshStandardMaterial({
-      map: loadTexture.load(ring.texture),
-      side: THREE.DoubleSide
-    });
-    Ring = new THREE.Mesh(RingGeo, RingMat);
-    planetSystem.add(Ring);
-    Ring.rotation.x = -0.5 * Math.PI;
-    Ring.rotation.y = -tilt * Math.PI / 180;
-  }
-
-  // Handle atmosphere
-  if (atmosphere) {
-    const atmosphereGeom = new THREE.SphereGeometry(size + 0.1, 32, 20);
-    const atmosphereMaterial = new THREE.MeshPhongMaterial({
-      map: loadTexture.load(atmosphere),
-      transparent: true,
-      opacity: 0.4,
-      depthTest: true,
-      depthWrite: false
-    });
-    Atmosphere = new THREE.Mesh(atmosphereGeom, atmosphereMaterial);
-    Atmosphere.rotation.z = 0.41;
-    planet.add(Atmosphere);
-  }
-
-  // Handle moons
-  if (moons) {
-    moons.forEach(moon => {
-      let moonMaterial;
-      if (moon.bump) {
-        moonMaterial = new THREE.MeshStandardMaterial({
-          map: loadTexture.load(moon.texture),
-          bumpMap: loadTexture.load(moon.bump),
-          bumpScale: 0.5
-        });
-      } else {
-        moonMaterial = new THREE.MeshStandardMaterial({
-          map: loadTexture.load(moon.texture)
-        });
-      }
-      const moonGeometry = new THREE.SphereGeometry(moon.size, 32, 20);
-      const moonMesh = new THREE.Mesh(moonGeometry, moonMaterial);
-      const moonOrbitDistance = size * 1.5;
-      moonMesh.position.set(moonOrbitDistance, 0, 0);
-      planetSystem.add(moonMesh);
-      moon.mesh = moonMesh;
-    });
-  }
-
-  // Add planetSystem directly to the scene (no planet3d)
+  // Adds the entire planet system to the scene.
   scene.add(planetSystem);
 
   let orbitAngle = 0;
-  return { name, planet, planetSystem, Atmosphere, moons, Ring, orbitPath, orbitcenter_x, orbitcenter_y, orbitAngle, orbitSpeed: 0.001 };
+  // Returns an object with references to the planet’s components.
+  return { name, planet, planetSystem, Atmosphere, moons, Ring, orbitPath, orbitcenter_x, orbitcenter_y, orbitAngle, orbitSpeed: 0.001, inclination };
 }
 
 // ****** LOADING OBJECTS METHOD ******
@@ -1123,10 +1004,10 @@ const jupiterMoons = [
 
 // ****** PLANET CREATIONS ******
 // Instantiates various planets as objects in the simulation, each with a 3D mesh, material, and orbital properties
-const mercury = new createPlanet('Mercury', 2.4, 34.83, 33.39, 7.16, 0, 0, mercuryTexture, mercuryBump);
-const venus = new createPlanet('Venus', 6.1, 65.07, 65.07, 0.44, 0, 3, venusTexture, venusBump, null, venusAtmosphere);
+const mercury = new createPlanet('Mercury', 2.4, 34.83, 33.39, 7.16, 0, 0, mercuryTexture, mercuryBump, null, null, null, 7, 48.33);
+const venus = new createPlanet('Venus', 6.1, 65.07, 65.07, 0.44, 0, 3, venusTexture, venusBump, null, venusAtmosphere, null, 3.39, 76.68);
 const earth = new createPlanet('Earth', 6.4, 90, 89.987, 1.5, 0, 23, earthMaterial, null, null, earthAtmosphere, earthMoon);
-const mars = new createPlanet('Mars', 3.4, 136.8, 136.18, 12.77, 0, 25, marsTexture, marsBump);
+const mars = new createPlanet('Mars', 3.4, 136.8, 136.18, 12.77, 0, 25, marsTexture, marsBump, null, null, null, 1.85, 49.56);
 
 // Loads and integrates the 3D models for Mars’ moons (Phobos and Deimos) into the simulation, 
 // assigning them to Mars’ coordinate system (planetSystem) and configuring them to cast and receive shadows for enhanced realism.
@@ -1151,19 +1032,19 @@ marsMoons.forEach(moon => {
   });
 });
 
-const jupiter = new createPlanet('Jupiter', 69/4, 200, 199.76, 22.88, 0, 3, jupiterTexture, null, null, null, jupiterMoons);
+const jupiter = new createPlanet('Jupiter', 69/4, 200, 199.76, 22.88, 0, 3, jupiterTexture, null, null, null, jupiterMoons, 1.31, 100.56);
 const saturn = new createPlanet('Saturn', 58/4, 270, 269.57, 48.75, 0, 26, saturnTexture, null, {
   innerRadius: 18,
   outerRadius: 29,
   texture: satRingTexture
-});
+}, null, null, 2.49, 113.72);
 const uranus = new createPlanet('Uranus', 25/4, 320, 319.67, 79, 0, 82, uranusTexture, null, {
   innerRadius: 6,
   outerRadius: 8,
   texture: uraRingTexture
-});
-const neptune = new createPlanet('Neptune', 24/4, 340, 339.98, 30.59, 0, 28, neptuneTexture);
-const pluto = new createPlanet('Pluto', 1, 350, 338.88, 88.3, 0, 57, plutoTexture);
+}, null, null, 0.77, 74.23);
+const neptune = new createPlanet('Neptune', 24/4, 340, 339.98, 30.59, 0, 28, neptuneTexture, null, null, null, null, 1.77, 131.72);
+const pluto = new createPlanet('Pluto', 4, 350, 338.88, 88.3, 0, 57, plutoTexture, null, null, null, null, 17.14, 110.30);
 
 // ****** PLANETS DATA ******
 // Define planetData
@@ -1328,17 +1209,29 @@ function animate() {
   // Rotate Sun
   sun.rotateY(0.004 * settings.acceleration);
 
-  // Update planet orbits
+  // Creates an array of all planet objects in the simulation.
   const planets = [mercury, venus, earth, mars, jupiter, saturn, uranus, neptune, pluto];
   planets.forEach(planet => {
-    // Increment orbit angle
+    // Advances the planet’s position along its orbit by incrementing its orbital angle.
     planet.orbitAngle += planet.orbitSpeed * settings.accelerationOrbit;
     // Normalize t to [0, 1] by wrapping angle to [0, 2π]
+    // Normalizes the orbital angle to a value between 0 and 1, suitable for sampling the elliptical orbit.
     const t = (planet.orbitAngle % (2 * Math.PI)) / (2 * Math.PI);
-    // Get point on the elliptical orbit
+    // Retrieves the 2D coordinates (x, y) of the planet’s current position on its elliptical orbit.
     const point = planet.orbitPath.getPoint(t);
-    // Set planetSystem position (y = 0 for orbital plane)
+    // Sets the initial position of the planetSystem group in 3D space, using the 2D orbit coordinates.
     planet.planetSystem.position.set(point.x, 0, point.y);
+    // Converts the planet’s orbital inclination to radians for use in a rotation transformation.
+    const inclinationRad = (planet.inclination || 0) * Math.PI / 180;
+    // Calculates the new y-coordinate of the planet after rotating its position by the inclination angle around the x-axis.
+    // This line applies a 2D rotation matrix to the y and z coordinates of planetSystem.position to tilt the orbit plane
+    // y' = y * cos(θ) - z * sin(θ)
+    const y = planet.planetSystem.position.y * Math.cos(inclinationRad) - planet.planetSystem.position.z * Math.sin(inclinationRad);
+    // Calculates the new z-coordinate of the planet after rotating its position by the inclination angle around the x-axis.
+    // z' = y * sin(θ) + z * cos(θ)
+    const z = planet.planetSystem.position.y * Math.sin(inclinationRad) + planet.planetSystem.position.z * Math.cos(inclinationRad);
+    planet.planetSystem.position.y = y;
+    planet.planetSystem.position.z = z;
 
     // Rotate planet on its axis
     planet.planet.rotateY(0.005 * settings.acceleration);
