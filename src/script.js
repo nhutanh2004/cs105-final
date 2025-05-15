@@ -318,7 +318,8 @@ function showPlanetInfo(planet) {
   // This updates the UI to show the selected planet’s name as a heading, e.g., “Jupiter” when Jupiter is clicked.
   name.innerText = planet;
   // Sets the text content of the planetDetails element to a formatted string containing the planet’s properties.
-  details.innerText = `Radius: ${planetData[planet].radius}\nTilt: ${planetData[planet].tilt}\nRotation: ${planetData[planet].rotation}\nOrbit: ${planetData[planet].orbit}\nDistance: ${planetData[planet].distance}\nMoons: ${planetData[planet].moons}\nInfo: ${planetData[planet].info}`;
+  // details.innerText = `Radius: ${planetData[planet].radius}\nTilt: ${planetData[planet].tilt}\nRotation: ${planetData[planet].rotation}\nOrbit: ${planetData[planet].orbit}\nDistance: ${planetData[planet].distance}\nMoons: ${planetData[planet].moons}\nInfo: ${planetData[planet].info}`;
+  details.innerText = planetData[planet].text;
   // Makes the planetInfo panel visible in the UI.
   // info is the planetInfo <div> retrieved earlier.
   // style.display = 'block' changes the CSS display property to block, making the element visible.
@@ -1048,6 +1049,7 @@ const pluto = new createPlanet('Pluto', 4, 350, 338.88, 88.3, 0, 57, plutoTextur
 
 // ****** PLANETS DATA ******
 // Define planetData
+/*
 const planetData = {
   'Mercury': {
     radius: '2,439.7 km',
@@ -1129,6 +1131,37 @@ const planetData = {
     distance: '5.9 billion km',
     moons: '5 (Charon, Styx, Nix, Kerberos, Hydra)',
     info: 'Originally classified as the ninth planet, Pluto is now considered a dwarf planet.'
+  }
+};
+*/
+
+const planetData = {
+  'Mercury': {
+    text: 'Sao Thủy là hành tinh nhỏ nhất trong Hệ Mặt Trời với bán kính 2.439,7 km và không có mặt trăng nào. Nó nằm gần Mặt Trời nhất ở khoảng cách 57,9 triệu km. Trục nghiêng của Sao Thủy chỉ 0,034 độ, gần như không có mùa. Một vòng quay quanh trục của nó kéo dài 58,6 ngày Trái Đất, còn một vòng quay quanh Mặt Trời mất 88 ngày Trái Đất. Đây là hành tinh nóng vào ban ngày và cực kỳ lạnh vào ban đêm do không có khí quyển dày. Dù gần Mặt Trời nhất, nhưng Sao Thủy không phải là hành tinh nóng nhất. Một ngày trên Sao Thủy dài hơn cả năm của nó!'
+  },
+  'Venus': {
+    text: 'Sao Kim là hành tinh thứ hai từ Mặt Trời, cách khoảng 108,2 triệu km, với bán kính 6.051,8 km. Nó không có mặt trăng nào và có khí quyển rất dày, chứa chủ yếu là CO₂, gây hiệu ứng nhà kính cực mạnh. Trục nghiêng của nó là 177,4 độ, quay ngược chiều với hầu hết các hành tinh khác. Một ngày trên Sao Kim dài 243 ngày Trái Đất, trong khi một năm chỉ mất 225 ngày Trái Đất. Đây là hành tinh nóng nhất trong Hệ Mặt Trời. Sao Kim là hành tinh sáng nhất trên bầu trời đêm sau Mặt Trăng. Trên Sao Kim, Mặt Trời mọc ở hướng tây và lặn ở hướng đông!'
+  },
+  'Earth': {
+    text: 'Trái Đất là hành tinh thứ ba từ Mặt Trời, cách khoảng 150 triệu km, với bán kính 6.371 km và có một mặt trăng – Mặt Trăng. Trục nghiêng của Trái Đất là 23,5 độ, tạo ra bốn mùa rõ rệt. Trái Đất quay quanh trục mỗi 24 giờ và mất 365 ngày để quay quanh Mặt Trời. Đây là hành tinh duy nhất được biết đến có sự sống. Trái Đất là hành tinh duy nhất có nước tồn tại ở cả ba trạng thái: rắn, lỏng và khí. Trái Đất là hành tinh duy nhất không được đặt tên theo một vị thần trong thần thoại!'
+  },
+  'Mars': {
+    text: 'Sao Hỏa là hành tinh thứ tư, cách Mặt Trời khoảng 227,9 triệu km, với bán kính 3.389,5 km và hai mặt trăng nhỏ tên là Phobos và Deimos. Trục nghiêng của nó là 25,19 độ, tương tự Trái Đất, dẫn đến các mùa. Một ngày trên Sao Hỏa kéo dài 1,03 ngày Trái Đất và một năm kéo dài 687 ngày Trái Đất. Nó nổi bật với màu đỏ do chứa nhiều oxit sắt trên bề mặt. Trên Sao Hỏa có hẻm núi lớn nhất trong Hệ Mặt Trời – Valles Marineris. Bầu khí quyển trên Sao Hỏa mỏng đến mức nước không thể tồn tại ở dạng lỏng trên bề mặt!'
+  },
+  'Jupiter': {
+    text: 'Sao Mộc là hành tinh lớn nhất trong Hệ Mặt Trời với bán kính lên tới 69.911 km và có ít nhất 95 mặt trăng được biết đến, trong đó Ganymede là mặt trăng lớn nhất. Nó nằm cách Mặt Trời 778,5 triệu km, nghiêng trục 3,13 độ. Một ngày trên Sao Mộc chỉ kéo dài 9,9 giờ – ngắn nhất trong các hành tinh, còn một năm kéo dài 12 năm Trái Đất. Nó nổi bật với Vết Đỏ Lớn – một cơn bão khổng lồ tồn tại hàng trăm năm. Ganymede còn lớn hơn cả hành tinh Sao Thủy! Sao Mộc có từ trường mạnh nhất trong Hệ Mặt Trời.'
+  },
+  'Saturn': {
+    text: 'Sao Thổ là hành tinh lớn thứ hai trong Hệ Mặt Trời, với bán kính 58.232 km và có 146 mặt trăng được biết đến. Nó cách Mặt Trời khoảng 1,4 tỷ km và có trục nghiêng 26,73 độ. Một ngày trên Sao Thổ kéo dài 10,7 giờ, còn một năm mất 29,5 năm Trái Đất. Sao Thổ nổi tiếng với hệ thống vành đai hoành tráng. Sao Thổ nhẹ đến mức có thể nổi trong nước nếu có đại dương đủ lớn! Vành đai của Sao Thổ chủ yếu được tạo thành từ băng đá và có thể nhìn thấy bằng kính thiên văn nhỏ.'
+  },
+  'Uranus': {
+    text: 'Sao Thiên Vương là hành tinh thứ bảy, cách Mặt Trời khoảng 2,9 tỷ km, bán kính 25.362 km, và có 27 mặt trăng. Trục nghiêng của nó là 97,77 độ khiến hành tinh này gần như nằm ngang khi quay. Một ngày kéo dài 17,2 giờ và một năm là 84 năm Trái Đất. Màu xanh nhạt của nó là do khí methane hấp thụ ánh sáng đỏ. Sao Thiên Vương có vành đai như Sao Thổ, nhưng rất mờ nhạt. Mùa hè và mùa đông ở mỗi cực có thể kéo dài tới 21 năm!'
+  },
+  'Neptune': {
+    text: 'Sao Hải Vương là hành tinh xa nhất trong Hệ Mặt Trời, cách Mặt Trời khoảng 4,5 tỷ km. Nó có bán kính 24.622 km và 14 mặt trăng, nổi bật nhất là Triton. Trục nghiêng là 28,32 độ. Một ngày dài 16,1 giờ và một năm mất 165 năm Trái Đất. Sao Hải Vương nổi bật với màu xanh đậm và các cơn gió mạnh nhất từng được ghi nhận. Triton quay quanh hành tinh theo hướng ngược lại – rất hiếm trong Hệ Mặt Trời. Dù xa Mặt Trời, Sao Hải Vương vẫn có hệ thời tiết cực kỳ động!'
+  },
+  'Pluto': {
+    text: 'Sao Diêm Vương là một hành tinh lùn, nằm cách Mặt Trời khoảng 5,9 tỷ km, với bán kính chỉ 1.188,3 km. Nó có 5 mặt trăng, trong đó Charon lớn gần bằng chính nó. Trục nghiêng là 122,53 độ, một ngày dài 6,4 ngày Trái Đất, còn một năm kéo dài 248 năm. Dù nhỏ bé, sao Diêm Vương có địa hình đa dạng với núi băng và đồng bằng nitơ. Sao Diêm Vương từng có thời gian gần Mặt Trời hơn cả Sao Hải Vương (1979–1999). Tỷ lệ kích thước giữa Sao Diêm Vương và Charon là gần nhất trong Hệ Mặt Trời – chúng gần như là hệ hành tinh đôi!'
   }
 };
 
@@ -1234,7 +1267,13 @@ function animate() {
     planet.planetSystem.position.z = z;
 
     // Rotate planet on its axis
-    planet.planet.rotateY(0.005 * settings.acceleration);
+    if (planet.name === 'Venus') {
+    planet.planet.rotateY(-0.005 * settings.acceleration); // clockwise
+    } 
+    else {
+    planet.planet.rotateY(0.005 * settings.acceleration); // counter-clockwise
+    }
+
     if (planet.Atmosphere) {
       planet.Atmosphere.rotateY(0.001 * settings.acceleration);
     }
