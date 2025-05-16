@@ -1234,6 +1234,566 @@ uranus.orbitSpeed = 0.0001;
 neptune.orbitSpeed = 0.00008;
 pluto.orbitSpeed = 0.00006;
 
+// ****** EARTH SATELLITES (mini asteroids and advanced satellites) ******
+const earthSatellites = [];
+function createEarthSatellites(count = 15) {
+  for (let i = 0; i < count; i++) {
+    // Thiên thạch nhỏ quay quanh trái đất
+    const size = THREE.MathUtils.randFloat(0.15, 0.35);
+    const geometry = new THREE.SphereGeometry(size, 12, 8);
+    
+    // Tạo texture phức tạp hơn cho thiên thạch
+    const color = new THREE.Color(
+      0.4 + Math.random() * 0.2, 
+      0.4 + Math.random() * 0.1,
+      0.4 + Math.random() * 0.1
+    );
+    const material = new THREE.MeshStandardMaterial({ 
+      color: color,
+      roughness: 0.8 + Math.random() * 0.2,
+      metalness: 0.1 + Math.random() * 0.2,
+    });
+    
+    const satellite = new THREE.Mesh(geometry, material);
+    
+    // Thêm các hố nhỏ cho thiên thạch
+    if (Math.random() > 0.5 && size > 0.25) {
+      const craterCount = Math.floor(Math.random() * 3) + 1;
+      for (let j = 0; j < craterCount; j++) {
+        const craterSize = size * (0.2 + Math.random() * 0.2);
+        const craterGeom = new THREE.SphereGeometry(craterSize, 8, 8);
+        const craterMat = new THREE.MeshStandardMaterial({ 
+          color: new THREE.Color(0.3, 0.3, 0.3),
+          roughness: 1.0
+        });
+        const crater = new THREE.Mesh(craterGeom, craterMat);
+        
+        // Vị trí ngẫu nhiên trên bề mặt thiên thạch
+        const phi = Math.random() * Math.PI * 2;
+        const theta = Math.random() * Math.PI;
+        crater.position.set(
+          size * 0.8 * Math.sin(theta) * Math.cos(phi),
+          size * 0.8 * Math.sin(theta) * Math.sin(phi),
+          size * 0.8 * Math.cos(theta)
+        );
+        
+        satellite.add(crater);
+      }
+    }
+
+    // Orbit parameters
+    satellite.userData.orbitRadius = THREE.MathUtils.randFloat(8, 15);
+    satellite.userData.orbitAngle = Math.random() * Math.PI * 2;
+    satellite.userData.orbitSpeed = THREE.MathUtils.randFloat(0.001, 0.003);
+    satellite.userData.rotationAxis = new THREE.Vector3(
+      Math.random() - 0.5,
+      Math.random() - 0.5,
+      Math.random() - 0.5
+    ).normalize();
+    satellite.userData.rotationSpeed = Math.random() * 0.02;
+
+    earth.planetSystem.add(satellite);
+    earthSatellites.push(satellite);
+  }
+
+  // Tạo vệ tinh hiện đại với thiết kế đẹp hơn
+  createModernSatellite(10, 0);
+  createModernSatellite(12, Math.PI / 2);
+  createModernSatellite(14, Math.PI);
+  createHubbleTelescope();
+  createISS();
+}
+
+// Tạo vệ tinh hiện đại với chi tiết cao
+function createModernSatellite(orbitRadius, startAngle) {
+  const satGroup = new THREE.Group();
+  
+  // Thân vệ tinh - hình hộp chữ nhật có texture
+  const bodyGeometry = new THREE.BoxGeometry(1.5, 0.8, 0.8);
+  const bodyMaterial = new THREE.MeshPhysicalMaterial({ 
+    color: 0xdddddd, 
+    metalness: 0.8, 
+    roughness: 0.3,
+    clearcoat: 0.3,
+    clearcoatRoughness: 0.2
+  });
+  const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+  satGroup.add(body);
+
+  // Thêm chi tiết thân vệ tinh
+  const detailGeom = new THREE.BoxGeometry(0.4, 0.3, 0.9);
+  const detailMat = new THREE.MeshStandardMaterial({ 
+    color: 0x333333, 
+    roughness: 0.8 
+  });
+  const detail = new THREE.Mesh(detailGeom, detailMat);
+  detail.position.set(0, 0.4, 0);
+  satGroup.add(detail);
+
+  // Tấm pin mặt trời với hiệu ứng phản chiếu
+  const panelGeometry = new THREE.BoxGeometry(0.04, 2.8, 0.8);
+  const panelMaterial = new THREE.MeshPhysicalMaterial({ 
+    color: 0x3366ff, 
+    metalness: 0.7, 
+    roughness: 0.2,
+    envMapIntensity: 1.0,
+    emissive: 0x223366,
+    emissiveIntensity: 0.3
+  });
+  
+  // Tạo tấm pin trái
+  const panelLeft = new THREE.Mesh(panelGeometry, panelMaterial);
+  panelLeft.position.x = -0.9;
+  
+  // Tạo khung viền cho tấm pin
+  const frameGeom = new THREE.BoxGeometry(0.06, 2.85, 0.85);
+  const frameMat = new THREE.MeshStandardMaterial({ 
+    color: 0x666666, 
+    metalness: 0.9, 
+    roughness: 0.3 
+  });
+  const frameLeft = new THREE.Mesh(frameGeom, frameMat);
+  frameLeft.position.copy(panelLeft.position);
+  frameLeft.position.z -= 0.01;
+  
+  // Tạo cấu trúc nối tấm pin với thân vệ tinh
+  const connectorGeom = new THREE.BoxGeometry(0.2, 0.1, 0.1);
+  const connector1 = new THREE.Mesh(connectorGeom, frameMat);
+  connector1.position.set(-0.7, 0.5, 0);
+  const connector2 = new THREE.Mesh(connectorGeom, frameMat);
+  connector2.position.set(-0.7, -0.5, 0);
+  
+  satGroup.add(panelLeft, frameLeft, connector1, connector2);
+  
+  // Tạo tấm pin phải (nhân đối xứng)
+  const panelRight = panelLeft.clone();
+  panelRight.position.x = 0.9;
+  const frameRight = frameLeft.clone();
+  frameRight.position.x = 0.9;
+  const connector3 = connector1.clone();
+  connector3.position.x = 0.7;
+  const connector4 = connector2.clone();
+  connector4.position.x = 0.7;
+  
+  satGroup.add(panelRight, frameRight, connector3, connector4);
+
+  // Anten phát sóng
+  const antennaGeometry = new THREE.CylinderGeometry(0.05, 0.05, 1.6, 12);
+  const antennaMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0x888888, 
+    metalness: 0.9,
+    roughness: 0.3
+  });
+  const antenna = new THREE.Mesh(antennaGeometry, antennaMaterial);
+  antenna.position.z = 0.6;
+  antenna.rotation.x = Math.PI / 2;
+  
+  // Thêm đĩa anten
+  const dishGeometry = new THREE.SphereGeometry(0.3, 16, 8, 0, Math.PI);
+  const dishMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0xdddddd, 
+    metalness: 0.8, 
+    roughness: 0.2,
+    side: THREE.DoubleSide
+  });
+  const dish = new THREE.Mesh(dishGeometry, dishMaterial);
+  dish.position.set(0, 0, 1.4);
+  dish.rotation.x = Math.PI/2;
+  antenna.add(dish);
+  
+  satGroup.add(antenna);
+
+  // Thêm hiệu ứng ánh sáng nhỏ (đèn tín hiệu)
+  const lightGeo = new THREE.SphereGeometry(0.06, 8, 8);
+  const lightMat = new THREE.MeshBasicMaterial({ 
+    color: 0xff0000, 
+    emissive: 0xff0000,
+    emissiveIntensity: 1
+  });
+  const redLight = new THREE.Mesh(lightGeo, lightMat);
+  redLight.position.set(0, -0.5, 0.4);
+  satGroup.add(redLight);
+  
+  // Đặt thông tin quỹ đạo cho vệ tinh
+  satGroup.userData.orbitRadius = orbitRadius;
+  satGroup.userData.orbitAngle = startAngle;
+  satGroup.userData.orbitSpeed = 0.0009;
+  satGroup.userData.blink = { time: 0, rate: 0.02 };
+
+  earth.planetSystem.add(satGroup);
+  earthSatellites.push(satGroup);
+  
+  return satGroup;
+}
+
+// Tạo mô hình Kính viễn vọng Hubble
+function createHubbleTelescope() {
+  const hubble = new THREE.Group();
+  
+  // Thân chính - hình trụ
+  const bodyGeom = new THREE.CylinderGeometry(0.6, 0.6, 2.5, 16);
+  const bodyMat = new THREE.MeshStandardMaterial({ 
+    color: 0xbbbbbb, 
+    metalness: 0.7, 
+    roughness: 0.4
+  });
+  const body = new THREE.Mesh(bodyGeom, bodyMat);
+  body.rotation.z = Math.PI/2;
+  hubble.add(body);
+  
+  // Thêm các tấm pin mặt trời (lớn hơn, xoay 90 độ)
+  const panelGeom = new THREE.BoxGeometry(3.0, 0.05, 1.0);
+  const panelMat = new THREE.MeshPhysicalMaterial({
+    color: 0x2255dd,
+    metalness: 0.7,
+    roughness: 0.3,
+    emissive: 0x112244,
+    emissiveIntensity: 0.5
+  });
+  
+  const panel1 = new THREE.Mesh(panelGeom, panelMat);
+  panel1.position.set(0, 1.2, 0);
+  hubble.add(panel1);
+  
+  const panel2 = new THREE.Mesh(panelGeom, panelMat);
+  panel2.position.set(0, -1.2, 0);
+  hubble.add(panel2);
+  
+  // Kính viễn vọng - phía trước
+  const scopeGeom = new THREE.CylinderGeometry(0.5, 0.5, 1.2, 16);
+  const scopeMat = new THREE.MeshStandardMaterial({
+    color: 0x111111,
+    metalness: 0.5,
+    roughness: 0.8
+  });
+  const scope = new THREE.Mesh(scopeGeom, scopeMat);
+  scope.rotation.z = Math.PI/2;
+  scope.position.set(-1.8, 0, 0);
+  hubble.add(scope);
+  
+  // Đặt thông tin quỹ đạo
+  hubble.userData.orbitRadius = 13;
+  hubble.userData.orbitAngle = Math.PI * 0.75;
+  hubble.userData.orbitSpeed = 0.0007;
+  hubble.userData.tilt = 0.4;
+  
+  hubble.scale.set(0.5, 0.5, 0.5); // Kích thước phù hợp
+  
+  earth.planetSystem.add(hubble);
+  earthSatellites.push(hubble);
+  
+  return hubble;
+}
+
+// Tạo Trạm vũ trụ quốc tế ISS
+function createISS() {
+  const iss = new THREE.Group();
+  
+  // Mô-đun chính
+  const mainModuleGeom = new THREE.CylinderGeometry(0.4, 0.4, 2.0, 12);
+  const mainModuleMat = new THREE.MeshStandardMaterial({
+    color: 0xdddddd,
+    metalness: 0.7,
+    roughness: 0.3
+  });
+  const mainModule = new THREE.Mesh(mainModuleGeom, mainModuleMat);
+  mainModule.rotation.z = Math.PI/2;
+  iss.add(mainModule);
+  
+  // Tạo các mô-đun phụ
+  for (let i = 0; i < 3; i++) {
+    const segmentGeom = new THREE.CylinderGeometry(0.3, 0.3, 0.8, 12);
+    const segment = new THREE.Mesh(segmentGeom, mainModuleMat);
+    segment.position.set((i-1) * 0.8, 0, 0);
+    segment.rotation.z = Math.PI/2;
+    iss.add(segment);
+  }
+  
+  // Tấm pin mặt trời - cặp 1
+  const solarPanelGeom = new THREE.BoxGeometry(2.5, 0.05, 0.8);
+  const solarPanelMat = new THREE.MeshPhysicalMaterial({
+    color: 0x3355dd,
+    metalness: 0.6,
+    roughness: 0.3,
+    emissive: 0x112244,
+    emissiveIntensity: 0.4
+  });
+  
+  const solarPanel1 = new THREE.Mesh(solarPanelGeom, solarPanelMat);
+  solarPanel1.position.set(0.5, 0, 1.0);
+  iss.add(solarPanel1);
+  
+  const solarPanel2 = new THREE.Mesh(solarPanelGeom, solarPanelMat);
+  solarPanel2.position.set(0.5, 0, -1.0);
+  iss.add(solarPanel2);
+  
+  // Tấm pin mặt trời - cặp 2
+  const solarPanel3 = new THREE.Mesh(solarPanelGeom, solarPanelMat);
+  solarPanel3.position.set(-0.5, 0, 1.0);
+  solarPanel3.rotation.y = Math.PI/6;
+  iss.add(solarPanel3);
+  
+  const solarPanel4 = new THREE.Mesh(solarPanelGeom, solarPanelMat);
+  solarPanel4.position.set(-0.5, 0, -1.0);
+  solarPanel4.rotation.y = -Math.PI/6;
+  iss.add(solarPanel4);
+  
+  // Scale to appropriate size
+  iss.scale.set(0.6, 0.6, 0.6);
+  
+  // Đặt thông tin quỹ đạo
+  iss.userData.orbitRadius = 9;
+  iss.userData.orbitAngle = Math.PI * 1.25;
+  iss.userData.orbitSpeed = 0.0012;
+  iss.userData.tilt = 0.2;
+  
+  earth.planetSystem.add(iss);
+  earthSatellites.push(iss);
+  
+  return iss;
+}
+
+createEarthSatellites(15);
+
+// ****** MINIMAP & ZOOM CONTROLS ******
+function createMinimap() {
+  // Tạo camera phụ cho minimap
+  const minimapCamera = new THREE.OrthographicCamera(
+    -400, 400, 200, -200, 1, 2000
+  );
+  minimapCamera.position.set(0, 800, 0);
+  minimapCamera.lookAt(0, 0, 0);
+  minimapCamera.zoom = 1.5;
+  minimapCamera.updateProjectionMatrix();
+  
+  // Tạo renderer phụ cho minimap
+  const minimapRenderer = new THREE.WebGLRenderer({ alpha: true });
+  minimapRenderer.setSize(200, 100);
+  minimapRenderer.domElement.style.position = 'absolute';
+  minimapRenderer.domElement.style.bottom = '10px';
+  minimapRenderer.domElement.style.right = '10px';
+  minimapRenderer.domElement.style.border = '1px solid white';
+  minimapRenderer.domElement.style.borderRadius = '5px';
+  minimapRenderer.domElement.style.opacity = '0.7';
+  document.body.appendChild(minimapRenderer.domElement);
+  
+  // Chỉ thị vị trí camera chính trên minimap
+  const cameraIndicator = new THREE.Mesh(
+    new THREE.SphereGeometry(5, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0xff0000 })
+  );
+  scene.add(cameraIndicator);
+  
+  // Các biến để theo dõi sự kiện hover và click lên minimap
+  let isMinimapHovered = false;
+  let isDraggingMinimap = false;
+  
+  // Thêm sự kiện cho minimap
+  minimapRenderer.domElement.addEventListener('mouseenter', () => {
+    isMinimapHovered = true;
+    minimapRenderer.domElement.style.opacity = '1';
+  });
+  
+  minimapRenderer.domElement.addEventListener('mouseleave', () => {
+    isMinimapHovered = false;
+    if (!isDraggingMinimap) {
+      minimapRenderer.domElement.style.opacity = '0.7';
+    }
+  });
+  
+  minimapRenderer.domElement.addEventListener('mousedown', (event) => {
+    isDraggingMinimap = true;
+    navigateFromMinimap(event);
+  });
+  
+  minimapRenderer.domElement.addEventListener('mousemove', (event) => {
+    if (isDraggingMinimap) {
+      navigateFromMinimap(event);
+    }
+  });
+  
+  window.addEventListener('mouseup', () => {
+    isDraggingMinimap = false;
+    if (!isMinimapHovered) {
+      minimapRenderer.domElement.style.opacity = '0.7';
+    }
+  });
+  
+  function navigateFromMinimap(event) {
+    // Chuyển đổi tọa độ chuột trên minimap thành tọa độ trong không gian 3D
+    const rect = minimapRenderer.domElement.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    const z = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    
+    // Tính toán vị trí mới cho camera chính
+    const targetX = x * 400;
+    const targetZ = z * 200;
+    
+    // Di chuyển camera chính đến vị trí mới, giữ nguyên độ cao (y)
+    if (!isMovingTowardsPlanet && !isZoomingOut) {
+      // Vòng tròn giới hạn phạm vi di chuyển
+      const maxDistance = 350;
+      const distance = Math.sqrt(targetX * targetX + targetZ * targetZ);
+      
+      if (distance <= maxDistance) {
+        camera.position.x = targetX;
+        camera.position.z = targetZ;
+      } else {
+        // Giữ tỷ lệ nhưng giới hạn trong phạm vi cho phép
+        camera.position.x = (targetX / distance) * maxDistance;
+        camera.position.z = (targetZ / distance) * maxDistance;
+      }
+      
+      // Cập nhật góc quay và khoảng cách cho controls
+      camera.lookAt(0, 0, 0);
+      controls.target.set(0, 0, 0);
+      radius = camera.position.length();
+      theta = Math.atan2(camera.position.x, camera.position.z);
+      phi = Math.acos(camera.position.y / radius);
+      
+      controls.update();
+    }
+  }
+  
+  return {
+    update: function() {
+      // Cập nhật vị trí indicator theo camera chính
+      const direction = new THREE.Vector3();
+      camera.getWorldDirection(direction);
+      
+      // Xác định vị trí indicator là cách camera 20 đơn vị theo hướng nhìn
+      cameraIndicator.position.copy(camera.position);
+      
+      minimapRenderer.render(scene, minimapCamera);
+    }
+  };
+}
+
+// Tạo chức năng zoom toàn cảnh
+function createZoomControls() {
+  // Tạo container cho các nút zoom
+  const zoomContainer = document.createElement('div');
+  zoomContainer.style.position = 'absolute';
+  zoomContainer.style.bottom = '120px';
+  zoomContainer.style.right = '10px';
+  zoomContainer.style.display = 'flex';
+  zoomContainer.style.flexDirection = 'column';
+  zoomContainer.style.gap = '5px';
+  
+  // Tạo nút zoom in
+  const zoomInButton = document.createElement('button');
+  zoomInButton.innerHTML = '+';
+  zoomInButton.style.width = '40px';
+  zoomInButton.style.height = '40px';
+  zoomInButton.style.fontSize = '24px';
+  zoomInButton.style.cursor = 'pointer';
+  zoomInButton.style.backgroundColor = 'rgba(255,255,255,0.2)';
+  zoomInButton.style.color = 'white';
+  zoomInButton.style.border = '1px solid white';
+  zoomInButton.style.borderRadius = '5px';
+  
+  // Tạo nút zoom out
+  const zoomOutButton = document.createElement('button');
+  zoomOutButton.innerHTML = '−';
+  zoomOutButton.style.width = '40px';
+  zoomOutButton.style.height = '40px';
+  zoomOutButton.style.fontSize = '24px';
+  zoomOutButton.style.cursor = 'pointer';
+  zoomOutButton.style.backgroundColor = 'rgba(255,255,255,0.2)';
+  zoomOutButton.style.color = 'white';
+  zoomOutButton.style.border = '1px solid white';
+  zoomOutButton.style.borderRadius = '5px';
+  
+  // Tạo nút reset view
+  const resetViewButton = document.createElement('button');
+  resetViewButton.innerHTML = '⟳';
+  resetViewButton.style.width = '40px';
+  resetViewButton.style.height = '40px';
+  resetViewButton.style.fontSize = '24px';
+  resetViewButton.style.cursor = 'pointer';
+  resetViewButton.style.backgroundColor = 'rgba(255,255,255,0.2)';
+  resetViewButton.style.color = 'white';
+  resetViewButton.style.border = '1px solid white';
+  resetViewButton.style.borderRadius = '5px';
+  
+  // Thêm các nút vào container
+  zoomContainer.appendChild(zoomInButton);
+  zoomContainer.appendChild(zoomOutButton);
+  zoomContainer.appendChild(resetViewButton);
+  document.body.appendChild(zoomContainer);
+  
+  // Xử lý sự kiện zoom in
+  zoomInButton.addEventListener('click', () => {
+    if (!isMovingTowardsPlanet && !isZoomingOut && radius > 100) {
+      // Giảm khoảng cách (zoom in)
+      radius *= 0.8;
+      
+      // Cập nhật vị trí camera
+      camera.position.x = radius * Math.sin(phi) * Math.sin(theta);
+      camera.position.y = radius * Math.cos(phi);
+      camera.position.z = radius * Math.sin(phi) * Math.cos(theta);
+      
+      camera.lookAt(0, 0, 0);
+      controls.update();
+    }
+  });
+  
+  // Xử lý sự kiện zoom out
+  zoomOutButton.addEventListener('click', () => {
+    if (!isMovingTowardsPlanet && !isZoomingOut && radius < 500) {
+      // Tăng khoảng cách (zoom out)
+      radius *= 1.25;
+      
+      // Cập nhật vị trí camera
+      camera.position.x = radius * Math.sin(phi) * Math.sin(theta);
+      camera.position.y = radius * Math.cos(phi);
+      camera.position.z = radius * Math.sin(phi) * Math.cos(theta);
+      
+      camera.lookAt(0, 0, 0);
+      controls.update();
+    }
+  });
+  
+  // Xử lý sự kiện reset view
+  resetViewButton.addEventListener('click', () => {
+    if (!isMovingTowardsPlanet && !isZoomingOut) {
+      // Reset về vị trí mặc định
+      camera.position.set(-175, 115, 5);
+      camera.lookAt(0, 0, 0);
+      
+      // Cập nhật các biến theo dõi
+      radius = camera.position.length();
+      theta = Math.atan2(camera.position.x, camera.position.z);
+      phi = Math.acos(camera.position.y / radius);
+      
+      controls.update();
+    }
+  });
+  
+  // Thêm hiệu ứng hover
+  [zoomInButton, zoomOutButton, resetViewButton].forEach(button => {
+    button.addEventListener('mouseenter', () => {
+      button.style.backgroundColor = 'rgba(255,255,255,0.4)';
+    });
+    
+    button.addEventListener('mouseleave', () => {
+      button.style.backgroundColor = 'rgba(255,255,255,0.2)';
+    });
+  });
+}
+
+// Khởi tạo minimap và điều khiển
+const minimap = createMinimap();
+createZoomControls();
+
+// Thiết lập userdata planetName cho các quỹ đạo
+orbits.forEach((orbit, index) => {
+  if (index < 9) { // 9 hành tinh
+    const planets = [mercury, venus, earth, mars, jupiter, saturn, uranus, neptune, pluto];
+    orbit.userData = { planetName: planets[index].name };
+  }
+});
+
 function animate() {
   // Update Sun and Corona Materials
   sunMaterial.uniforms.time.value += 0.015;
@@ -1318,6 +1878,51 @@ function animate() {
     });
   }
 
+  // Update Earth's mini satellites (thiên thạch và vệ tinh)
+  if (earthSatellites.length > 0) {
+    const time = performance.now();
+    earthSatellites.forEach(satellite => {
+      satellite.userData.orbitAngle += (satellite.userData.orbitSpeed || 0.001) * settings.accelerationOrbit;
+      const angle = satellite.userData.orbitAngle;
+      const r = satellite.userData.orbitRadius;
+      const tilt = satellite.userData.tilt || 0.3;
+      
+      // Vị trí theo quỹ đạo
+      satellite.position.set(
+        r * Math.cos(angle),
+        r * Math.sin(angle) * Math.sin(tilt),
+        r * Math.sin(angle) * Math.cos(tilt)
+      );
+      
+      // Cho vệ tinh luôn hướng về trái đất
+      if (satellite instanceof THREE.Group && satellite.children.length > 2) {
+        satellite.lookAt(0, 0, 0);
+      }
+      
+      // Xoay quanh trục riêng hoặc theo hướng chuyển động
+      if (satellite.userData.rotationAxis) {
+        satellite.rotateOnAxis(satellite.userData.rotationAxis, satellite.userData.rotationSpeed);
+      } else {
+        satellite.rotation.y += 0.01;
+      }
+      
+      // Hiệu ứng nhấp nháy đèn cho vệ tinh
+      if (satellite.userData.blink) {
+        satellite.userData.blink.time += satellite.userData.blink.rate;
+        if (satellite.userData.blink.time > Math.PI) {
+          satellite.userData.blink.time = 0;
+        }
+        
+        satellite.children.forEach(child => {
+          if (child.material && child.material.emissive) {
+            const intensity = 0.5 + 0.5 * Math.sin(satellite.userData.blink.time);
+            child.material.emissiveIntensity = intensity;
+          }
+        });
+      }
+    });
+  }
+
   // Update Asteroids
   asteroids.forEach(asteroid => {
     asteroid.rotation.y += 0.0001;
@@ -1353,6 +1958,9 @@ function animate() {
       isZoomingOut = false;
     }
   }
+
+  // Update minimap
+  minimap.update();
 
   // Update controls and render
   controls.update();
@@ -1403,13 +2011,40 @@ window.addEventListener('keydown', (event) => {
       case 'd':
         theta -= rotateSpeed;
         break;
+      case 'pageup':
+        if (radius > 100) {
+          radius *= 0.9;
+          camera.position.x = radius * Math.sin(phi) * Math.sin(theta);
+          camera.position.y = radius * Math.cos(phi);
+          camera.position.z = radius * Math.sin(phi) * Math.cos(theta);
+          camera.lookAt(0, 0, 0);
+          controls.update();
+        }
+        break;
+      case 'pagedown':
+        if (radius < 500) {
+          radius *= 1.1;
+          camera.position.x = radius * Math.sin(phi) * Math.sin(theta);
+          camera.position.y = radius * Math.cos(phi);
+          camera.position.z = radius * Math.sin(phi) * Math.cos(theta);
+          camera.lookAt(0, 0, 0);
+          controls.update();
+        }
+        break;
     }
+  }
+});
 
-    camera.position.x = radius * Math.sin(phi) * Math.sin(theta);
-    camera.position.y = radius * Math.cos(phi);
-    camera.position.z = radius * Math.sin(phi) * Math.cos(theta);
-    camera.lookAt(0, 0, 0);
-    controls.target.set(0, 0, 0);
-    controls.update();
+window.addEventListener('wheel', (event) => {
+  if (!isMovingTowardsPlanet && !isZoomingOut) {
+    const zoomFactor = event.deltaY > 0 ? 1.1 : 0.9;
+    if ((zoomFactor < 1 && radius > 100) || (zoomFactor > 1 && radius < 500)) {
+      radius *= zoomFactor;
+      camera.position.x = radius * Math.sin(phi) * Math.sin(theta);
+      camera.position.y = radius * Math.cos(phi);
+      camera.position.z = radius * Math.sin(phi) * Math.cos(theta);
+      camera.lookAt(0, 0, 0);
+      controls.update();
+    }
   }
 });
