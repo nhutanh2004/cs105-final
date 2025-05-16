@@ -694,7 +694,7 @@ function createPlanet(planetName, size, position_a, position_b, orbitcenter_x, o
   // color: 0xFFFFFF: White color.
   // transparent: true: Allows opacity.
   // opacity: 0.03: Very faint, making the orbit subtle.
-  const orbitMaterial = new THREE.LineBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.03 });
+  const orbitMaterial = new THREE.LineBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 1});
   // Creates a line loop to render the orbit.
   // THREE.LineLoop connects the points into a closed loop (circle).
   // Combines orbitGeometry (points) and orbitMaterial (faint white).
