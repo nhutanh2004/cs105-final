@@ -106,6 +106,14 @@ gui.add(settings, 'showOrbits').name('Show Orbits').onChange(value => {
   });
 });
 
+const closeButton = document.querySelector('#planetInfo .close-btn');
+if (closeButton) {
+  closeButton.addEventListener('mousedown', (event) => {
+    event.stopPropagation(); // Prevent mousedown from reaching the canvas
+    closeInfo(); // Call closeInfo to hide panel and zoom out
+  });
+}
+
 // Mouse interaction
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
@@ -123,8 +131,25 @@ let offset;
 
 function onDocumentMouseDown(event) {
   event.preventDefault();
+
+  const planetInfo = document.getElementById('planetInfo');
+  if (planetInfo && (event.target === planetInfo || planetInfo.contains(event.target))) {
+    return; // Ignore clicks on the UI
+  }
+  
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+  if (isZoomingOut) {
+    isZoomingOut = false; // Ngừng zoom out
+    // Cập nhật theta, phi, radius dựa trên vị trí camera hiện tại
+    radius = camera.position.length();
+    theta = Math.atan2(camera.position.x, camera.position.z);
+    phi = Math.acos(camera.position.y / radius);
+    controls.target.set(0, 0, 0); // Đảm bảo camera nhìn vào gốc tọa độ
+    controls.update(); // Cập nhật OrbitControls
+    return; // Thoát hàm để tránh xử lý raycasting khi chỉ muốn ngừng zoom out
+  }
 
   raycaster.setFromCamera(mouse, camera);
   const intersects = raycaster.intersectObjects(raycastTargets);

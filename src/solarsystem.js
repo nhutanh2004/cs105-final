@@ -187,6 +187,14 @@ gui.add(settings, 'showOrbits').name('Show Orbits').onChange(value => {
   });
 });
 
+const closeButton = document.querySelector('#planetInfo .close-btn');
+if (closeButton) {
+  closeButton.addEventListener('mousedown', (event) => {
+    event.stopPropagation(); // Prevent mousedown from reaching the canvas
+    closeInfo(); // Call closeInfo to hide panel and zoom out
+  });
+}
+
 // mouse movement
 // Creates a Raycaster object to perform raycasting, which detects intersections between a ray (from the camera through the mouse position) and 3D objects in the scene.
 // THREE.Raycaster is a Three.js utility that casts a virtual "ray" from a starting point (typically the camera) in a specified direction to check for intersections with objects.
@@ -231,9 +239,26 @@ let offset;
 function onDocumentMouseDown(event) {
   // Prevents default browser behaviors that might interfere with the click interaction.
   event.preventDefault();
+
+  const planetInfo = document.getElementById('planetInfo');
+  if (planetInfo && (event.target === planetInfo || planetInfo.contains(event.target))) {
+    return; // Ignore clicks on the UI
+  }
+  
   // Updates the mouse.x and mouse.y coordinate to the normalized device coordinate (NDC) for raycasting.
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+  if (isZoomingOut) {
+    isZoomingOut = false; // Ngừng zoom out
+    // Cập nhật theta, phi, radius dựa trên vị trí camera hiện tại
+    radius = camera.position.length();
+    theta = Math.atan2(camera.position.x, camera.position.z);
+    phi = Math.acos(camera.position.y / radius);
+    controls.target.set(0, 0, 0); // Đảm bảo camera nhìn vào gốc tọa độ
+    controls.update(); // Cập nhật OrbitControls
+    return; // Thoát hàm để tránh xử lý raycasting khi chỉ muốn ngừng zoom out
+  }
 
   // Configures the raycaster to cast a ray from the camera through the mouse’s normalized position.
   raycaster.setFromCamera(mouse, camera);
