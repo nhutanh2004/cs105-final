@@ -295,10 +295,10 @@ function identifyPlanet(clickedObject) {
     offset = 50;
     return saturn;
   } else if (clickedObject.material === uranus.planet.material) {
-    offset = 25;
+    offset = 50;
     return uranus;
   } else if (clickedObject.material === neptune.planet.material) {
-    offset = 20;
+    offset = 40;
     return neptune;
   } else if (clickedObject.material === pluto.planet.material) {
     offset = 20;
@@ -1039,12 +1039,12 @@ const saturn = new createPlanet('Saturn', 58/4, 270, 269.57, 48.75, 0, 26, satur
   outerRadius: 29,
   texture: satRingTexture
 }, null, null, 2.49, 113.72);
-const uranus = new createPlanet('Uranus', 25/4, 320, 319.67, 79, 0, 82, uranusTexture, null, {
-  innerRadius: 6,
-  outerRadius: 8,
+const uranus = new createPlanet('Uranus', 52/4, 320, 319.67, 79, 0, 82, uranusTexture, null, {
+  innerRadius: 12,
+  outerRadius: 16,
   texture: uraRingTexture
 }, null, null, 0.77, 74.23);
-const neptune = new createPlanet('Neptune', 24/4, 340, 339.98, 30.59, 0, 28, neptuneTexture, null, null, null, null, 1.77, 131.72);
+const neptune = new createPlanet('Neptune', 48/4, 340, 339.98, 30.59, 0, 28, neptuneTexture, null, null, null, null, 1.77, 131.72);
 const pluto = new createPlanet('Pluto', 4, 350, 338.88, 88.3, 0, 57, plutoTexture, null, null, null, null, 17.14, 110.30);
 
 // ****** PLANETS DATA ******
@@ -1224,15 +1224,15 @@ uranus.planet.receiveShadow = true;
 neptune.planet.receiveShadow = true;
 pluto.planet.receiveShadow = true;
 
-mercury.orbitSpeed = 0.004;
-venus.orbitSpeed = 0.0006;
-earth.orbitSpeed = 0.001;
-mars.orbitSpeed = 0.0007;
-jupiter.orbitSpeed = 0.0003;
-saturn.orbitSpeed = 0.0002;
-uranus.orbitSpeed = 0.0001;
-neptune.orbitSpeed = 0.00008;
-pluto.orbitSpeed = 0.00006;
+mercury.orbitSpeed = 0.0082;
+venus.orbitSpeed = 0.00324;
+earth.orbitSpeed = 0.002;
+mars.orbitSpeed = 0.0014;
+jupiter.orbitSpeed = 0.0000166;
+saturn.orbitSpeed = 0.000068;
+uranus.orbitSpeed = 0.000024;
+neptune.orbitSpeed = 0.000012;
+pluto.orbitSpeed = 0.000008;
 
 // ****** EARTH SATELLITES (mini asteroids and advanced satellites) ******
 const earthSatellites = [];
@@ -1794,6 +1794,18 @@ orbits.forEach((orbit, index) => {
   }
 });
 
+const rotationSpeeds = {
+      Mercury: 0.00009,
+      Venus: -0.00002, // Quay ngược
+      Earth: 0.005,
+      Mars: 0.0049,
+      Jupiter: 0.012,
+      Saturn: 0.011,
+      Uranus: 0.007,
+      Neptune: 0.0075,
+      Pluto: 0.0008
+};
+
 function animate() {
   // Update Sun and Corona Materials
   sunMaterial.uniforms.time.value += 0.015;
@@ -1827,13 +1839,19 @@ function animate() {
     planet.planetSystem.position.z = z;
 
     // Rotate planet on its axis
+    if (planet.name in rotationSpeeds) {
+      planet.planet.rotateY(rotationSpeeds[planet.name] * settings.acceleration);
+    } else {
+      planet.planet.rotateY(0.005 * settings.acceleration); // Giá trị mặc định
+    }
+    /*
     if (planet.name === 'Venus') {
     planet.planet.rotateY(-0.005 * settings.acceleration); // clockwise
     } 
     else {
     planet.planet.rotateY(0.005 * settings.acceleration); // counter-clockwise
     }
-
+    */
     if (planet.Atmosphere) {
       planet.Atmosphere.rotateY(0.001 * settings.acceleration);
     }
