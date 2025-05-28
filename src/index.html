@@ -1,19 +1,68 @@
-    <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Home page</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css" />
+    <style>
+        #music-toggle {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 100;
+            padding: 10px 15px;
+            background-color: #222;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+    </style>
 </head>
-<body class="homepage" >
-
+<body class="homepage">
     <h1>Welcome to 3D Single Star Systems Simulation</h1>
     <ul>
-            <li><a href="solarsystem.html">SOLAR SYSTEM</a></li>
-            <li><a href="hd10180.html">HD10180</a></li>
-            <li><a href="kepler90.html">KEPLER90</a></li>
-            <li><a href="trappist1.html">TRAPPIST1</a></li>
+        <li><a href="solarsystem.html">SOLAR SYSTEM</a></li>
+        <li><a href="hd10180.html">HD10180</a></li>
+        <li><a href="kepler90.html">KEPLER90</a></li>
+        <li><a href="trappist1.html">TRAPPIST1</a></li>
     </ul>
+
+    <button id="music-toggle">🔊 Music On</button>
+
+    <audio id="background-music" src="music.mp3" loop></audio>
+    <audio id="click-sound" src="click.wav" preload="auto"></audio>
+
+    <script>
+        const music = document.getElementById('background-music');
+        const toggleBtn = document.getElementById('music-toggle');
+
+        const enableAudio = () => {
+            if (music.paused) {
+                music.play().catch(() => { });
+            }
+            document.body.removeEventListener('click', enableAudio);
+        };
+        document.body.addEventListener('click', enableAudio);
+
+        toggleBtn.addEventListener('click', () => {
+            if (music.paused) {
+                music.play();
+                toggleBtn.textContent = '🔊 Music On';
+            } else {
+                music.pause();
+                toggleBtn.textContent = '🔇 Music Off';
+            }
+        });
+
+        const clickSound = document.getElementById('click-sound');
+        document.addEventListener('click', (e) => {
+            if (clickSound.readyState >= 2) {
+                clickSound.currentTime = 0;
+                clickSound.play().catch(() => { });
+            }
+        });
+    </script>
 </body>
 </html>

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TRAPPIST1</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css" />
     <style>
         #gui-container {
             position: absolute;
@@ -12,14 +12,32 @@
             right: 10px;
             z-index: 10;
         }
+
+        #music-toggle {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 100;
+            padding: 10px 15px;
+            background-color: #222;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
     <nav>
-    <a href="index.html">Back to Home</a>
+        <a href="index.html">Back to Home</a>
     </nav>
+
+    <button id="music-toggle">🔊 Music On</button>
+
     <div id="gui-container"></div>
-    <div><script type="module" src="./trappist1.js"></script></div>
+
+    <script type="module" src="./trappist1.js"></script>
+
     <div id="planetInfo" class="planet-info">
         <div class="planet-info-content">
             <span class="close-btn" onclick="closeInfo()">&times;</span>
@@ -27,5 +45,33 @@
             <p id="planetDetails"></p>
         </div>
     </div>
+
+    <audio id="background-music" src="music.mp3" autoplay loop></audio>
+    <audio id="click-sound" src="click.wav" preload="auto"></audio>
+
+    <script>
+        const music = document.getElementById('background-music');
+        const toggleBtn = document.getElementById('music-toggle');
+        const clickSound = document.getElementById('click-sound');
+
+        toggleBtn.addEventListener('click', () => {
+            if (music.paused) {
+                music.play();
+                toggleBtn.textContent = '🔊 Music On';
+            } else {
+                music.pause();
+                toggleBtn.textContent = '🔇 Music Off';
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (e.target !== toggleBtn) {
+                if (clickSound.readyState >= 2) {
+                    clickSound.currentTime = 0;
+                    clickSound.play().catch(() => { });
+                }
+            }
+        });
+    </script>
 </body>
 </html>
