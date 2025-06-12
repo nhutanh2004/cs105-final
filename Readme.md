@@ -1,8 +1,5 @@
-============================================================
-           3D SOLAR SYSTEM VISUALIZATION - README
-============================================================
-
-Mô phỏng hệ mặt trời 3D sử dụng WebGL và Three.js.
+#   3D Single Star Systems Simulation
+Mô phỏng hệ đơn sao 3D sử dụng WebGL và Three.js.
 
 ------------------------------------------------------------
 YÊU CẦU HỆ THỐNG
